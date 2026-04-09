@@ -599,7 +599,7 @@ function buildCC() {
   if (!list) return;
 
   const SUPPORTED = new Set(['AT','AU','BE','BG','BR','CA','CN','CY','CZ','DE','DK','EE','ES',
-    'FI','FR','GB','GR','HK','HR','HU','ID','IE','IN','IT','JP','LT','LU','LV','MT','MY',
+    'FI','FR','GB','GR','HK','HR','HU','ID','IE','IN','IT','JP','LT','LU','LV','MT','MX','MY',
     'NL','NZ','PH','PL','PT','RO','RU','SE','SG','SI','SK','TH','TW','US','VN']);
 
   const REGIONS = [
@@ -693,7 +693,7 @@ function pickCC(code, name) {
   document.getElementById('cc_dd').classList.remove('open');
   // 미국 선택 시 DDP 관세 박스 표시
   const ddpbox = document.getElementById('ddpbox');
-  if (ddpbox) ddpbox.style.display = code === 'US' ? 'block' : 'none';
+  if (ddpbox) ddpbox.style.display = ['US','MX','CA'].includes(code) ? 'block' : 'none';
 }
 function clearCC(e) {
   e.stopPropagation();
@@ -1031,7 +1031,7 @@ function calcShip(){
   const vw=(l&&d&&h)?Math.round(l*d*h/(isEU?5000:6000)*100)/100:null;
   const cw=vw?Math.max(w,vw):w;
   const wl=vw?`적용 ${cw.toFixed(2)}kg ${cw===vw?'(부피)':'(실무게)'}`:`적용 ${cw.toFixed(2)}kg`;
-  const ddp=(c==='US'&&pu>0);
+  const ddp=((c==='US'||c==='MX'||c==='CA')&&pu>0);
   const tax=ddp?Math.round(pu*ex*(tr/100)):0;
   const adf=ddp?Math.round(15*ex):0;
   const nm=NM[c]||c;
