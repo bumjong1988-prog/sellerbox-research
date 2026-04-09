@@ -31,6 +31,11 @@ const handler = async (req, res) => {
     if (!resp) { res.status(500).json({ error: 'No response', keys }); return; }
     const ack = resp.ack && resp.ack[0];
     if (ack !== 'Success') {
+      let errMsg = 'eBay error'; let rawErr = JSON.stringify(resp.errorMessage || resp);
+      try { errMsg = resp.errorMessage[0].error[0].message[0]; } catch(e) {}
+      res.status(200).json({ total: 0, count: 0, offset, items: [], error: errMsg, rawErr });
+      return;
+    }
       let errMsg = 'eBay error';
       try { errMsg = resp.errorMessage[0].error[0].message[0]; } catch(e) {}
       res.status(200).json({ total: 0, count: 0, offset, items: [], error: errMsg });
