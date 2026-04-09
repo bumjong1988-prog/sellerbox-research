@@ -1,81 +1,56 @@
-// Vercel Serverless Function - eBay API 프록시
-// 환경변수: EBAY_APP_ID, EBAY_CERT_ID
-
 export default async function handler(req, res) {
-  // CORS 허용
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-
-  const { action, seller, offset = 0, limit = 200 } = req.query;
-
+  if (req.method === 'OPTIONS') return res.status(200).end();
+  const { action, seller, offset = 0, limit = 100 } = req.query;
+  const appId = process.env.EBAY_APP_ID;
+  const certId = process.env.EBAY_CERT_ID;
+  if (!appId || !certId) return res.status(500).json({ error: 'API keys not configured' });
+  if (action !== 'seller_items') return res.status(400).json({ error: 'Unknown action' });
+  if (!seller) return res.status(400).json({ error: 'seller required' });
   try {
-    // 1. Client Credentials로 Access Token 발급
-    const appId   = process.env.EBAY_APP_ID;
-    const certId  = process.env.EBAY_CERT_ID;
-
-    if (!appId || !certId) {
-      return res.status(500).json({ error: 'eBay API keys not configured' });
-    }
-
-    const tokenRes = await fetch('https://api.ebay.com/identity/v1/oauth2/token', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Authorization': 'Basic ' + Buffer.from(`${appId}:${certId}`).toString('base64'),
-      },
-      body: 'grant_type=client_credentials&scope=https%3A%2F%2Fapi.ebay.com%2Foauth%2Fapi_scope',
+    const pageSize = 100;
+    const page = Math.floor(parseInt(offset) / pageSize) + 1;
+    const params = new URLSearchParams({
+      'OPERATION-NAME': 'findItemsAdvanced',
+      'SERVICE-VERSION': '1.13.0',
+      'SECURITY-APPNAME': appId,
+      'RESPONSE-DATA-FORMAT': 'JSON',
+      'REST-PAYLOAD': '',
+      'itemFilter(0).name': 'Seller',
+      'itemFilter(0).value': seller.trim(),
+      'itemFilter(1).name': 'ListingType',
+      'itemFilter(1).value': 'FixedPrice',
+      'paginationInput.entriesPerPage': String(pageSize),
+      'paginationInput.pageNumber': String(page),
+      'sortOrder': 'BestMatch',
+      'outputSelector(0)': 'SellerInfo',
     });
-
-    const tokenData = await tokenRes.json();
-    if (!tokenData.access_token) {
-      return res.status(500).json({ error: 'Token failed', detail: tokenData });
+    const url = 'https://svcs.ebay.com/services/search/FindingService/v1?' + params.toString();
+    const r = await fetch(url);
+    const d = await r.json();
+    const resp = d?.findItemsAdvancedResponse?.[0];
+    if (!resp) return res.status(500).json({ error: 'No response from eBay' });
+    if (resp.ack?.[0] !== 'Success') {
+      const errMsg = resp.errorMessage?.[0]?.error?.[0]?.message?.[0] || 'eBay API error';
+      return res.status(200).json({ total: 0, count: 0, offset: parseInt(offset), items: [], error: errMsg });
     }
-    const token = tokenData.access_token;
-
-    // 2. 셀러 상품 목록 조회
-    if (action === 'seller_items') {
-      if (!seller) return res.status(400).json({ error: 'seller param required' });
-
-      const sellerName = seller.trim().toLowerCase();
-      const url = `https://api.ebay.com/buy/browse/v1/item_summary/search?filter=sellers%3A%7B${encodeURIComponent(sellerName)}%7D&sort=newlyListed&limit=${limit}&offset=${offset}&fieldgroups=EXTENDED`;
-
-      const apiRes = await fetch(url, {
-        headers: { 'Authorization': `Bearer ${token}`, 'X-EBAY-C-MARKETPLACE-ID': 'EBAY_US' }
-      });
-      const data = await apiRes.json();
-
-      // sold 수 파싱 + 정제
-      const items = (data.itemSummaries || []).map(item => ({
-        itemId:       item.itemId,
-        title:        item.title,
-        price:        item.price?.value,
-        currency:     item.price?.currency,
-        image:        item.image?.imageUrl,
-        condition:    item.condition,
-        soldQuantity: item.soldQuantity || 0,
-        quantityLeft: item.estimatedAvailabilities?.[0]?.estimatedAvailableQuantity || null,
-        itemUrl:      item.itemWebUrl,
-        seller:       item.seller?.username,
-        categories:   item.categories?.map(c => c.categoryName).join(' > '),
-        shippingCost: item.shippingOptions?.[0]?.shippingCost?.value || null,
-        listingType:  item.buyingOptions?.[0],
-      }));
-
-      return res.status(200).json({
-        total: data.total || 0,
-        count: items.length,
-        offset: parseInt(offset),
-        items,
-      });
-    }
-
-    return res.status(400).json({ error: 'Unknown action' });
-
+    const total = parseInt(resp.paginationOutput?.[0]?.totalEntries?.[0] || 0);
+    const rawItems = resp.searchResult?.[0]?.item || [];
+    const items = rawItems.map(item => ({
+      itemId: item.itemId?.[0] || '',
+      title: item.title?.[0] || '',
+      price: item.sellingStatus?.[0]?.currentPrice?.[0]?.__value__ || null,
+      currency: item.sellingStatus?.[0]?.currentPrice?.[0]?.['@currencyId'] || 'USD',
+      image: item.galleryURL?.[0] || null,
+      condition: item.condition?.[0]?.conditionDisplayName?.[0] || '',
+      soldQuantity: 0,
+      quantityLeft: null,
+      itemUrl: item.viewItemURL?.[0] || '',
+      seller: item.sellerInfo?.[0]?.sellerUserName?.[0] || seller.trim(),
+      categories: item.primaryCategory?.[0]?.categoryName?.[0] || '',
+      listingType: item.listingInfo?.[0]?.listingType?.[0] || '',
+    }));
+    return res.status(200).json({ total, count: items.length, offset: parseInt(offset), items });
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
