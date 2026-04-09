@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>eBay 셀러박스 — 셀러 리서치</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Malgun Gothic','Apple SD Gothic Neo',sans-serif;background:#0f1923;min-height:100vh;color:#fff}
+
+/* 헤더 */
+.header{background:#1a2942;border-bottom:1px solid rgba(255,255,255,.08);padding:14px 28px;display:flex;align-items:center;gap:14px}
+.header-logo{display:flex;align-items:center;gap:8px}
+.header-title{font-size:16px;font-weight:800;color:#fff}
+.header-sub{font-size:11px;color:rgba(255,255,255,.35);margin-left:4px}
+.header-right{margin-left:auto;display:flex;align-items:center;gap:10px}
+.stat-pill{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);border-radius:50px;padding:5px 14px;font-size:12px;color:rgba(255,255,255,.6)}
+.stat-pill strong{color:#fff;font-weight:800}
+
+/* 메인 레이아웃 */
+.main{display:grid;grid-template-columns:320px 1fr;min-height:calc(100vh - 57px)}
+
+/* 좌측 패널 */
+.sidebar{background:#1a2942;border-right:1px solid rgba(255,255,255,.08);padding:20px 18px;overflow-y:auto}
+.section-title{font-size:10px;font-weight:700;color:rgba(255,255,255,.35);letter-spacing:.1em;text-transform:uppercase;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center}
+.seller-input-wrap{display:flex;gap:6px;margin-bottom:8px}
+.seller-input{flex:1;background:rgba(255,255,255,.07);border:1.5px solid rgba(255,255,255,.12);border-radius:10px;padding:9px 13px;font-size:13px;color:#fff;outline:none;transition:all .2s}
+.seller-input:focus{border-color:rgba(52,152,219,.6);background:rgba(52,152,219,.08)}
+.seller-input::placeholder{color:rgba(255,255,255,.25)}
+.add-btn{padding:9px 14px;background:#3498db;border:none;border-radius:10px;color:#fff;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;transition:all .2s}
+.add-btn:hover{background:#2980b9}
+
+/* 셀러 리스트 */
+.seller-list{display:flex;flex-direction:column;gap:5px;margin-bottom:16px;max-height:320px;overflow-y:auto}
+.seller-item{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:8px 12px;transition:all .2s;cursor:pointer}
+.seller-item:hover{background:rgba(52,152,219,.1);border-color:rgba(52,152,219,.3)}
+.seller-item.active{background:rgba(52,152,219,.15);border-color:rgba(52,152,219,.5)}
+.seller-item.loading{opacity:.6}
+.seller-dot{width:8px;height:8px;border-radius:50%;background:#555;flex-shrink:0}
+.seller-dot.ok{background:#2ecc71}
+.seller-dot.loading{background:#f39c12;animation:pulse 1s infinite}
+.seller-dot.error{background:#e74c3c}
+.seller-name{flex:1;font-size:13px;font-weight:600;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.seller-count{font-size:11px;color:rgba(255,255,255,.4)}
+.seller-del{width:20px;height:20px;border-radius:50%;background:rgba(231,76,60,.2);border:none;color:#e74c3c;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;opacity:0;transition:opacity .2s}
+.seller-item:hover .seller-del{opacity:1}
+
+/* 스캔 버튼 */
+.scan-btn{width:100%;padding:13px;background:linear-gradient(135deg,#3498db,#2980b9);border:none;border-radius:12px;color:#fff;font-size:14px;font-weight:800;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:14px}
+.scan-btn:hover{transform:translateY(-1px);box-shadow:0 4px 20px rgba(52,152,219,.4)}
+.scan-btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+
+/* 필터 */
+.filter-section{margin-bottom:14px}
+.filter-label{font-size:11px;color:rgba(255,255,255,.4);margin-bottom:6px}
+.filter-row{display:flex;gap:6px;flex-wrap:wrap}
+.filter-btn{padding:5px 12px;border-radius:50px;border:1.5px solid rgba(255,255,255,.12);background:transparent;color:rgba(255,255,255,.5);font-size:11px;font-weight:600;cursor:pointer;transition:all .15s}
+.filter-btn.on{background:rgba(52,152,219,.25);border-color:#3498db;color:#74c0fc}
+
+.sort-select{width:100%;background:rgba(255,255,255,.07);border:1.5px solid rgba(255,255,255,.12);border-radius:10px;padding:8px 12px;font-size:12px;color:#fff;outline:none;-webkit-appearance:none;cursor:pointer}
+.sort-select option{background:#1a2942}
+
+/* 우측 결과 패널 */
+.results{background:#0f1923;padding:20px 24px;overflow-y:auto}
+
+/* 요약 카드 */
+.summary-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px}
+.sum-card{background:#1a2942;border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:14px 16px}
+.sum-label{font-size:10px;color:rgba(255,255,255,.4);font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px}
+.sum-val{font-size:22px;font-weight:900;color:#fff;letter-spacing:-1px}
+.sum-val.blue{color:#74c0fc}
+.sum-val.green{color:#2ecc71}
+.sum-val.yellow{color:#f1c40f}
+
+/* 진행 바 */
+.progress-wrap{background:#1a2942;border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:14px 18px;margin-bottom:16px;display:none}
+.progress-label{font-size:12px;color:rgba(255,255,255,.5);margin-bottom:8px}
+.progress-bar{height:6px;background:rgba(255,255,255,.1);border-radius:3px;overflow:hidden}
+.progress-fill{height:100%;background:linear-gradient(90deg,#3498db,#2ecc71);border-radius:3px;transition:width .3s;width:0%}
+.progress-status{font-size:11px;color:rgba(255,255,255,.35);margin-top:6px}
+
+/* 상품 테이블 */
+.table-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.table-title{font-size:13px;font-weight:700;color:rgba(255,255,255,.6);letter-spacing:.04em;text-transform:uppercase}
+.items-count{font-size:12px;color:rgba(255,255,255,.35)}
+
+.item-grid{display:flex;flex-direction:column;gap:6px}
+.item-row{display:grid;grid-template-columns:56px 1fr 90px 80px 70px 70px 100px;gap:12px;align-items:center;background:#1a2942;border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:10px 14px;transition:all .2s}
+.item-row:hover{background:#1e3356;border-color:rgba(52,152,219,.3)}
+.item-row.header-row{background:transparent;border-color:transparent;padding:4px 14px}
+.item-row.header-row span{font-size:10px;font-weight:700;color:rgba(255,255,255,.3);letter-spacing:.06em;text-transform:uppercase}
+
+.item-img{width:56px;height:56px;border-radius:8px;object-fit:cover;background:#0f1923;border:1px solid rgba(255,255,255,.08);flex-shrink:0}
+.item-img-placeholder{width:56px;height:56px;border-radius:8px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+
+.item-title{overflow:hidden}
+.item-name{font-size:12px;font-weight:600;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:3px}
+.item-meta{font-size:10px;color:rgba(255,255,255,.3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.item-seller-tag{display:inline-block;background:rgba(52,152,219,.2);color:#74c0fc;border-radius:4px;padding:1px 6px;font-size:10px;font-weight:600;margin-right:4px}
+
+.item-price{font-size:14px;font-weight:900;color:#fff;letter-spacing:-.3px}
+.item-price-sub{font-size:10px;color:rgba(255,255,255,.3);margin-top:1px}
+
+.sold-badge{display:inline-block;background:rgba(46,204,113,.15);border:1px solid rgba(46,204,113,.3);color:#2ecc71;border-radius:6px;padding:3px 10px;font-size:13px;font-weight:800}
+.sold-badge.zero{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.1);color:rgba(255,255,255,.3)}
+
+.stock-badge{display:inline-block;border-radius:6px;padding:3px 9px;font-size:11px;font-weight:700}
+.stock-badge.low{background:rgba(231,76,60,.15);border:1px solid rgba(231,76,60,.3);color:#e74c3c}
+.stock-badge.mid{background:rgba(241,196,15,.1);border:1px solid rgba(241,196,15,.25);color:#f1c40f}
+.stock-badge.high{background:rgba(52,152,219,.1);border:1px solid rgba(52,152,219,.2);color:#74c0fc}
+.stock-badge.unknown{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.3)}
+
+.item-link{display:inline-flex;align-items:center;gap:4px;background:rgba(52,152,219,.15);border:1px solid rgba(52,152,219,.3);color:#74c0fc;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;text-decoration:none;transition:all .2s}
+.item-link:hover{background:rgba(52,152,219,.3)}
+
+/* 빈 상태 */
+.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:80px 20px;color:rgba(255,255,255,.2)}
+.empty-icon{font-size:48px;margin-bottom:16px;opacity:.5}
+.empty-text{font-size:14px;text-align:center;line-height:1.6}
+
+/* 에러 */
+.error-msg{background:rgba(231,76,60,.1);border:1px solid rgba(231,76,60,.25);border-radius:10px;padding:12px 16px;font-size:12px;color:#e74c3c;margin-bottom:10px}
+
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+@keyframes spin{to{transform:rotate(360deg)}}
+.spinner{width:16px;height:16px;border:2px solid rgba(255,255,255,.2);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite}
+
+/* 모바일 대응 */
+@media(max-width:900px){
+  .main{grid-template-columns:1fr}
+  .sidebar{border-right:none;border-bottom:1px solid rgba(255,255,255,.08)}
+  .summary-grid{grid-template-columns:1fr 1fr}
+  .item-row{grid-template-columns:44px 1fr 70px 60px}
+}
+</style>
+</head>
+<body>
+
+<!-- 헤더 -->
+<div class="header">
+  <div class="header-logo">
+    <svg width="52" height="22" viewBox="0 0 310 130" xmlns="http://www.w3.org/2000/svg">
+      <path d="M32,65 C32,40 48,22 74,22 C100,22 114,40 114,65 C114,68 114,71 113,74 L48,74 C50,86 60,93 74,93 C84,93 91,89 96,83 L110,92 C102,103 89,110 74,110 C47,110 32,92 32,65 Z M48,62 L98,62 C96,50 87,43 74,43 C61,43 51,50 48,62 Z" fill="#E53238"/>
+      <path d="M122,10 L140,10 L140,50 C146,42 155,38 166,38 C188,38 204,55 204,74 C204,93 188,110 166,110 C155,110 146,106 140,98 L140,108 L122,108 Z M140,74 C140,84 149,93 160,93 C171,93 180,84 180,74 C180,64 171,55 160,55 C149,55 140,64 140,74 Z" fill="#0064D2"/>
+      <path d="M212,92 L228,83 C233,90 240,94 250,94 C258,94 263,90 263,85 C263,80 258,77 246,74 C230,70 216,64 216,49 C216,42 222,22 250,22 C264,22 275,28 282,38 L267,48 C263,42 257,38 250,38 C242,38 236,42 236,48 C236,53 241,56 252,59 C270,64 283,70 283,85 C283,99 271,110 250,110 C234,110 221,103 212,92 Z" fill="#F5AF02"/>
+      <path d="M292,40 L272,90 C264,111 255,122 234,122 L234,105 C244,105 249,100 254,88 L220,40 L241,40 L263,78 L285,40 Z" fill="#86B817"/>
+    </svg>
+    <span class="header-title">셀러박스 리서치</span>
+    <span class="header-sub">eBay 셀러 상품 분석 툴</span>
+  </div>
+  <div class="header-right">
+    <div class="stat-pill">셀러 <strong id="hdr_sellers">0</strong>명</div>
+    <div class="stat-pill">상품 <strong id="hdr_items">0</strong>개</div>
+    <div class="stat-pill">총 판매 <strong id="hdr_sold">0</strong>개</div>
+  </div>
+</div>
+
+<div class="main">
+
+<!-- 좌측 사이드바 -->
+<div class="sidebar">
+
+  <!-- 셀러 추가 -->
+  <div class="section-title">
+    <span>📋 셀러 목록</span>
+    <span id="seller_count_label" style="color:rgba(255,255,255,.35);font-weight:400;font-size:10px">0명 등록</span>
+  </div>
+
+  <div class="seller-input-wrap">
+    <input class="seller-input" id="seller_input" type="text"
+      placeholder="eBay 셀러 아이디 입력"
+      onkeydown="if(event.key==='Enter')addSeller()">
+    <button class="add-btn" onclick="addSeller()">+ 추가</button>
+  </div>
+
+  <div class="seller-list" id="seller_list">
+    <div style="text-align:center;padding:20px 0;font-size:12px;color:rgba(255,255,255,.2)">
+      셀러를 추가해주세요
+    </div>
+  </div>
+
+  <!-- 스캔 버튼 -->
+  <button class="scan-btn" id="scan_btn" onclick="startScan()">
+    <span>🔍</span>
+    <span id="scan_btn_text">전체 셀러 스캔</span>
+  </button>
+
+  <hr style="border:none;border-top:1px solid rgba(255,255,255,.07);margin-bottom:14px">
+
+  <!-- 정렬 -->
+  <div class="filter-section">
+    <div class="filter-label">정렬 기준</div>
+    <select class="sort-select" id="sort_select" onchange="sortAndRender()">
+      <option value="sold_desc">판매량 높은 순 ↓</option>
+      <option value="sold_asc">판매량 낮은 순 ↑</option>
+      <option value="price_desc">가격 높은 순 ↓</option>
+      <option value="price_asc">가격 낮은 순 ↑</option>
+      <option value="stock_asc">재고 적은 순 (긴급)</option>
+      <option value="title_asc">상품명 가나다순</option>
+    </select>
+  </div>
+
+  <!-- 셀러 필터 -->
+  <div class="filter-section">
+    <div class="filter-label">셀러 필터</div>
+    <div class="filter-row" id="seller_filter_row">
+      <button class="filter-btn on" data-seller="all" onclick="setSellerFilter('all',this)">전체</button>
+    </div>
+  </div>
+
+  <!-- sold 필터 -->
+  <div class="filter-section">
+    <div class="filter-label">판매량 필터</div>
+    <div class="filter-row">
+      <button class="filter-btn on" data-sold="all" onclick="setSoldFilter('all',this)">전체</button>
+      <button class="filter-btn" data-sold="1" onclick="setSoldFilter('1',this)">1개↑</button>
+      <button class="filter-btn" data-sold="10" onclick="setSoldFilter('10',this)">10개↑</button>
+      <button class="filter-btn" data-sold="50" onclick="setSoldFilter('50',this)">50개↑</button>
+      <button class="filter-btn" data-sold="100" onclick="setSoldFilter('100',this)">100개↑</button>
+    </div>
+  </div>
+
+  <!-- CSV 내보내기 -->
+  <button onclick="exportCSV()" style="width:100%;padding:9px;background:rgba(46,204,113,.15);border:1.5px solid rgba(46,204,113,.3);color:#2ecc71;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;margin-top:4px">
+    📥 CSV 내보내기
+  </button>
+</div>
+
+<!-- 우측 결과 -->
+<div class="results" id="results_panel">
+
+  <!-- 요약 카드 -->
+  <div class="summary-grid">
+    <div class="sum-card">
+      <div class="sum-label">스캔 상품 수</div>
+      <div class="sum-val blue" id="sum_items">-</div>
+    </div>
+    <div class="sum-card">
+      <div class="sum-label">총 판매량 (sold)</div>
+      <div class="sum-val green" id="sum_sold">-</div>
+    </div>
+    <div class="sum-card">
+      <div class="sum-label">최고 판매 상품</div>
+      <div class="sum-val yellow" id="sum_top">-</div>
+    </div>
+    <div class="sum-card">
+      <div class="sum-label">판매 있는 상품</div>
+      <div class="sum-val" id="sum_has_sold">-</div>
+    </div>
+  </div>
+
+  <!-- 진행 상태 -->
+  <div class="progress-wrap" id="progress_wrap">
+    <div class="progress-label" id="progress_label">스캔 중...</div>
+    <div class="progress-bar"><div class="progress-fill" id="progress_fill"></div></div>
+    <div class="progress-status" id="progress_status"></div>
+  </div>
+
+  <!-- 테이블 헤더 -->
+  <div class="table-header">
+    <div class="table-title">상품 목록</div>
+    <div class="items-count" id="items_count_label">0개 표시</div>
+  </div>
+
+  <div class="item-row header-row">
+    <span></span>
+    <span>상품명</span>
+    <span>가격</span>
+    <span>Sold</span>
+    <span>재고</span>
+    <span>셀러</span>
+    <span></span>
+  </div>
+
+  <!-- 빈 상태 -->
+  <div class="empty-state" id="empty_state">
+    <div class="empty-icon">🔍</div>
+    <div class="empty-text">좌측에서 셀러를 추가하고<br>스캔 버튼을 눌러주세요</div>
+  </div>
+
+  <div class="item-grid" id="item_grid"></div>
+</div>
+</div>
+
+<script>
+// ── 상태
+let sellers = JSON.parse(localStorage.getItem('sb_sellers') || '[]');
+let allItems = [];
+let filteredItems = [];
+let activeSellerFilter = 'all';
+let activeSoldFilter = 'all';
+let isScanning = false;
+
+// API 엔드포인트 (Vercel 배포 후 자동으로 같은 도메인)
+const API_BASE = '/api/ebay';
+
+// ── 초기화
+window.addEventListener('load', () => {
+  renderSellerList();
+  if (allItems.length) sortAndRender();
+});
+
+// ── 셀러 추가
+function addSeller() {
+  const input = document.getElementById('seller_input');
+  const raw = input.value.trim();
+  if (!raw) return;
+
+  // URL에서 셀러 아이디 추출
+  let seller = raw;
+  // https://www.ebay.com/usr/sellerid 형태
+  const usrMatch = raw.match(/ebay\.com\/usr\/([^/?&]+)/i);
+  // https://www.ebay.com/sch/i.html?_ssn=sellerid 형태
+  const ssnMatch = raw.match(/_ssn=([^&]+)/i);
+  if (usrMatch) seller = usrMatch[1];
+  else if (ssnMatch) seller = decodeURIComponent(ssnMatch[1]);
+
+  seller = seller.toLowerCase().trim();
+  if (!seller) return;
+  if (sellers.includes(seller)) { alert(`"${seller}" 이미 추가된 셀러예요`); return; }
+
+  sellers.push(seller);
+  saveSellers();
+  input.value = '';
+  renderSellerList();
+  updateSellerFilter();
+}
+
+function removeSeller(name) {
+  sellers = sellers.filter(s => s !== name);
+  allItems = allItems.filter(i => i.seller !== name);
+  saveSellers();
+  renderSellerList();
+  updateSellerFilter();
+  sortAndRender();
+  updateSummary();
+}
+
+function saveSellers() {
+  localStorage.setItem('sb_sellers', JSON.stringify(sellers));
+  document.getElementById('seller_count_label').textContent = sellers.length + '명 등록';
+  document.getElementById('hdr_sellers').textContent = sellers.length;
+}
+
+// ── 셀러 리스트 렌더
+function renderSellerList() {
+  const el = document.getElementById('seller_list');
+  if (!sellers.length) {
+    el.innerHTML = '<div style="text-align:center;padding:20px 0;font-size:12px;color:rgba(255,255,255,.2)">셀러를 추가해주세요</div>';
+    return;
+  }
+  el.innerHTML = sellers.map(s => {
+    const items = allItems.filter(i => i.seller === s);
+    const sold = items.reduce((a,b) => a + (b.soldQuantity||0), 0);
+    return `<div class="seller-item" id="seller_row_${s}">
+      <div class="seller-dot" id="dot_${s}"></div>
+      <div class="seller-name">${s}</div>
+      <div class="seller-count">${items.length ? items.length+'개' : ''} ${sold ? '· '+sold+'sold' : ''}</div>
+      <button class="seller-del" onclick="removeSeller('${s}')">×</button>
+    </div>`;
+  }).join('');
+  document.getElementById('seller_count_label').textContent = sellers.length + '명 등록';
+  document.getElementById('hdr_sellers').textContent = sellers.length;
+}
+
+// ── 스캔
+async function startScan() {
+  if (isScanning) return;
+  if (!sellers.length) { alert('셀러를 먼저 추가해주세요'); return; }
+
+  isScanning = true;
+  allItems = [];
+  const btn = document.getElementById('scan_btn');
+  const btnText = document.getElementById('scan_btn_text');
+  btn.disabled = true;
+  btnText.innerHTML = '<div class="spinner" style="margin-right:6px"></div>스캔 중...';
+
+  const progressWrap = document.getElementById('progress_wrap');
+  const progressFill = document.getElementById('progress_fill');
+  const progressLabel = document.getElementById('progress_label');
+  const progressStatus = document.getElementById('progress_status');
+  progressWrap.style.display = 'block';
+  document.getElementById('empty_state').style.display = 'none';
+
+  const errors = [];
+
+  for (let i = 0; i < sellers.length; i++) {
+    const seller = sellers[i];
+    const pct = Math.round((i / sellers.length) * 100);
+    progressFill.style.width = pct + '%';
+    progressLabel.textContent = `스캔 중... (${i+1}/${sellers.length})`;
+    progressStatus.textContent = `"${seller}" 불러오는 중...`;
+
+    // 로딩 표시
+    const dot = document.getElementById('dot_' + seller);
+    if (dot) { dot.className = 'seller-dot loading'; }
+
+    try {
+      const items = await fetchSellerItems(seller);
+      allItems = [...allItems, ...items];
+
+      if (dot) dot.className = 'seller-dot ok';
+      progressStatus.textContent = `"${seller}" 완료 — ${items.length}개 상품`;
+    } catch(e) {
+      errors.push(`${seller}: ${e.message}`);
+      if (dot) dot.className = 'seller-dot error';
+      progressStatus.textContent = `"${seller}" 오류 — ${e.message}`;
+    }
+
+    renderSellerList();
+    sortAndRender();
+    updateSummary();
+  }
+
+  progressFill.style.width = '100%';
+  progressLabel.textContent = `✅ 스캔 완료! ${allItems.length}개 상품`;
+  progressStatus.textContent = errors.length ? `오류: ${errors.join(', ')}` : '모든 셀러 스캔 완료';
+
+  setTimeout(() => { progressWrap.style.display = 'none'; }, 3000);
+
+  isScanning = false;
+  btn.disabled = false;
+  btnText.textContent = '🔄 다시 스캔';
+}
+
+// eBay API 호출 (최대 200개, 2페이지)
+async function fetchSellerItems(seller) {
+  const items = [];
+
+  // 1페이지 (0~199)
+  const res1 = await fetch(`${API_BASE}?action=seller_items&seller=${encodeURIComponent(seller)}&limit=200&offset=0`);
+  if (!res1.ok) throw new Error(`HTTP ${res1.status}`);
+  const data1 = await res1.json();
+  if (data1.error) throw new Error(data1.error);
+  items.push(...(data1.items || []));
+
+  // 상품이 200개 이상이면 2페이지도
+  if ((data1.total || 0) > 200) {
+    try {
+      const res2 = await fetch(`${API_BASE}?action=seller_items&seller=${encodeURIComponent(seller)}&limit=200&offset=200`);
+      const data2 = await res2.json();
+      items.push(...(data2.items || []));
+    } catch(e) { /* 2페이지 실패는 무시 */ }
+  }
+
+  return items;
+}
+
+// ── 정렬 & 렌더
+function sortAndRender() {
+  const sort = document.getElementById('sort_select').value;
+
+  // 셀러 필터
+  let items = activeSellerFilter === 'all'
+    ? [...allItems]
+    : allItems.filter(i => i.seller === activeSellerFilter);
+
+  // sold 필터
+  if (activeSoldFilter !== 'all') {
+    const min = parseInt(activeSoldFilter);
+    items = items.filter(i => (i.soldQuantity||0) >= min);
+  }
+
+  // 정렬
+  items.sort((a, b) => {
+    switch(sort) {
+      case 'sold_desc':  return (b.soldQuantity||0) - (a.soldQuantity||0);
+      case 'sold_asc':   return (a.soldQuantity||0) - (b.soldQuantity||0);
+      case 'price_desc': return parseFloat(b.price||0) - parseFloat(a.price||0);
+      case 'price_asc':  return parseFloat(a.price||0) - parseFloat(b.price||0);
+      case 'stock_asc': {
+        const sa = a.quantityLeft ?? 9999;
+        const sb = b.quantityLeft ?? 9999;
+        return sa - sb;
+      }
+      case 'title_asc':  return (a.title||'').localeCompare(b.title||'');
+      default: return 0;
+    }
+  });
+
+  filteredItems = items;
+  renderItems(items);
+  updateSummary();
+}
+
+function renderItems(items) {
+  const grid = document.getElementById('item_grid');
+  const emptyState = document.getElementById('empty_state');
+  document.getElementById('items_count_label').textContent = items.length.toLocaleString() + '개 표시';
+
+  if (!items.length) {
+    grid.innerHTML = '';
+    emptyState.style.display = allItems.length ? 'none' : 'flex';
+    if (allItems.length && !items.length) {
+      grid.innerHTML = '<div style="text-align:center;padding:40px;font-size:13px;color:rgba(255,255,255,.3)">필터 조건에 맞는 상품이 없어요</div>';
+    }
+    return;
+  }
+
+  emptyState.style.display = 'none';
+  grid.innerHTML = items.map(item => {
+    const sold = item.soldQuantity || 0;
+    const price = item.price ? `$${parseFloat(item.price).toFixed(2)}` : '-';
+    const stock = item.quantityLeft;
+
+    let stockHtml = '';
+    if (stock === null || stock === undefined) {
+      stockHtml = '<span class="stock-badge unknown">-</span>';
+    } else if (stock <= 5) {
+      stockHtml = `<span class="stock-badge low">${stock}개</span>`;
+    } else if (stock <= 20) {
+      stockHtml = `<span class="stock-badge mid">${stock}개</span>`;
+    } else {
+      stockHtml = `<span class="stock-badge high">${stock}개</span>`;
+    }
+
+    const imgHtml = item.image
+      ? `<img class="item-img" src="${item.image}" alt="" loading="lazy" onerror="this.style.display='none'">`
+      : `<div class="item-img-placeholder">📦</div>`;
+
+    const cat = item.categories ? `<span style="color:rgba(255,255,255,.25)">${item.categories.split('>').pop().trim()}</span>` : '';
+
+    return `<div class="item-row">
+      ${imgHtml}
+      <div class="item-title">
+        <div class="item-name" title="${item.title}">${item.title}</div>
+        <div class="item-meta">
+          <span class="item-seller-tag">${item.seller}</span>
+          ${cat}
+        </div>
+      </div>
+      <div>
+        <div class="item-price">${price}</div>
+        <div class="item-price-sub">${item.currency || 'USD'}</div>
+      </div>
+      <div><span class="sold-badge ${sold === 0 ? 'zero' : ''}">${sold > 0 ? sold + ' sold' : '0'}</span></div>
+      <div>${stockHtml}</div>
+      <div style="font-size:11px;color:rgba(255,255,255,.4)">${item.seller}</div>
+      <div><a class="item-link" href="${item.itemUrl}" target="_blank">eBay ↗</a></div>
+    </div>`;
+  }).join('');
+}
+
+// ── 요약 업데이트
+function updateSummary() {
+  const items = filteredItems.length ? filteredItems : allItems;
+  const totalSold = items.reduce((a,b) => a+(b.soldQuantity||0), 0);
+  const topSold = items.reduce((a,b) => Math.max(a,b.soldQuantity||0), 0);
+  const hasSold = items.filter(i => (i.soldQuantity||0) > 0).length;
+
+  document.getElementById('sum_items').textContent = allItems.length.toLocaleString();
+  document.getElementById('sum_sold').textContent = totalSold.toLocaleString();
+  document.getElementById('sum_top').textContent = topSold > 0 ? topSold + ' sold' : '-';
+  document.getElementById('sum_has_sold').textContent = hasSold > 0 ? hasSold + '개' : '-';
+  document.getElementById('hdr_items').textContent = allItems.length.toLocaleString();
+  document.getElementById('hdr_sold').textContent = totalSold.toLocaleString();
+}
+
+// ── 셀러 필터
+function updateSellerFilter() {
+  const row = document.getElementById('seller_filter_row');
+  row.innerHTML = `<button class="filter-btn ${activeSellerFilter==='all'?'on':''}" data-seller="all" onclick="setSellerFilter('all',this)">전체</button>` +
+    sellers.map(s => `<button class="filter-btn ${activeSellerFilter===s?'on':''}" data-seller="${s}" onclick="setSellerFilter('${s}',this)">${s}</button>`).join('');
+}
+
+function setSellerFilter(val, btn) {
+  activeSellerFilter = val;
+  document.querySelectorAll('[data-seller]').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+  sortAndRender();
+}
+
+function setSoldFilter(val, btn) {
+  activeSoldFilter = val;
+  document.querySelectorAll('[data-sold]').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+  sortAndRender();
+}
+
+// ── CSV 내보내기
+function exportCSV() {
+  if (!filteredItems.length && !allItems.length) { alert('데이터가 없어요. 먼저 스캔해주세요'); return; }
+  const items = filteredItems.length ? filteredItems : allItems;
+  const header = '셀러,상품명,가격(USD),판매량(sold),재고,카테고리,상품URL';
+  const rows = items.map(i =>
+    `${i.seller},"${(i.title||'').replace(/"/g,'""')}",${i.price||''},${i.soldQuantity||0},${i.quantityLeft??''},"${i.categories||''}",${i.itemUrl||''}`
+  );
+  const csv = '\uFEFF' + [header, ...rows].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const now = new Date().toISOString().slice(0,10);
+  a.href = url; a.download = `ebay_seller_research_${now}.csv`;
+  a.click(); URL.revokeObjectURL(url);
+}
+</script>
+</body>
+</html>
