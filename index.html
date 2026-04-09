@@ -3,595 +3,1243 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>eBay 셀러박스 — 셀러 리서치</title>
+<title>eBay 셀러박스 — 배송비 · 마진 · 판매실적</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Malgun Gothic','Apple SD Gothic Neo',sans-serif;background:#0f1923;min-height:100vh;color:#fff}
+body{font-family:'Malgun Gothic','Apple SD Gothic Neo',sans-serif;background:#1e3a37;min-height:100vh;color:#fff}
 
-/* 헤더 */
-.header{background:#1a2942;border-bottom:1px solid rgba(255,255,255,.08);padding:14px 28px;display:flex;align-items:center;gap:14px}
-.header-logo{display:flex;align-items:center;gap:8px}
-.header-title{font-size:16px;font-weight:800;color:#fff}
-.header-sub{font-size:11px;color:rgba(255,255,255,.35);margin-left:4px}
-.header-right{margin-left:auto;display:flex;align-items:center;gap:10px}
-.stat-pill{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);border-radius:50px;padding:5px 14px;font-size:12px;color:rgba(255,255,255,.6)}
-.stat-pill strong{color:#fff;font-weight:800}
+/* ── 로그인 화면 */
+.auth-wrap{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px}
+.auth-box{background:#2e5f5a;border-radius:20px;padding:36px 32px;width:100%;max-width:400px;box-shadow:0 8px 40px rgba(0,0,0,.3)}
+.auth-logo{display:flex;align-items:center;gap:6px;margin-bottom:4px}
+.auth-sub{font-size:12px;color:rgba(255,255,255,.45);margin-bottom:28px;line-height:1.6}
+.auth-tabs{display:flex;gap:4px;margin-bottom:24px;background:rgba(0,0,0,.2);border-radius:50px;padding:4px}
+.auth-tab{flex:1;text-align:center;padding:8px 0;border-radius:50px;font-size:13px;font-weight:700;cursor:pointer;border:none;color:rgba(255,255,255,.55);background:transparent;transition:all .2s}
+.auth-tab.on{background:#fff;color:#2e5f5a}
+.auth-pane{display:none}.auth-pane.on{display:block}
+.auth-field{margin-bottom:14px}
+.auth-field label{display:block;font-size:10px;font-weight:700;color:rgba(255,255,255,.5);margin-bottom:5px;letter-spacing:.05em;text-transform:uppercase}
+.auth-field input{width:100%;padding:11px 16px;border:1.5px solid rgba(255,255,255,.15);border-radius:50px;font-size:14px;color:#fff;background:rgba(255,255,255,.1);outline:none;transition:all .2s}
+.auth-field input:focus{border-color:rgba(255,255,255,.5);background:rgba(255,255,255,.18)}
+.auth-field input::placeholder{color:rgba(255,255,255,.3)}
+.auth-btn{width:100%;padding:13px;background:#fff;color:#2e5f5a;border:none;border-radius:50px;font-size:14px;font-weight:900;cursor:pointer;margin-top:4px;transition:all .2s}
+.auth-btn:hover{background:#e8f5ee;transform:translateY(-1px)}
+.auth-btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.auth-msg{margin-top:14px;padding:10px 14px;border-radius:12px;font-size:12px;text-align:center;display:none}
+.auth-msg.ok{background:rgba(45,106,79,.3);border:1px solid rgba(45,106,79,.5);color:#a8e6c3}
+.auth-msg.err{background:rgba(229,85,85,.2);border:1px solid rgba(229,85,85,.4);color:#ffaaaa}
+.auth-msg.warn{background:rgba(255,193,7,.15);border:1px solid rgba(255,193,7,.3);color:#ffe082}
 
-/* 메인 레이아웃 */
-.main{display:grid;grid-template-columns:320px 1fr;min-height:calc(100vh - 57px)}
+/* ── 관리자 패널 */
+.admin-wrap{display:none;min-height:100vh;background:#1e3a37;padding:28px 32px}
+.admin-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:28px}
+.admin-title{font-size:20px;font-weight:900}
+.admin-logout{padding:8px 20px;background:rgba(255,255,255,.1);border:1.5px solid rgba(255,255,255,.2);color:#fff;border-radius:50px;font-size:13px;font-weight:700;cursor:pointer}
+.admin-logout:hover{background:rgba(255,255,255,.2)}
+.pending-card{background:#2e5f5a;border-radius:16px;padding:20px 24px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between}
+.pending-info{font-size:14px;font-weight:700}
+.pending-date{font-size:11px;color:rgba(255,255,255,.4);margin-top:3px}
+.pending-btns{display:flex;gap:8px}
+.approve-btn{padding:8px 20px;background:#2d6a4f;color:#fff;border:none;border-radius:50px;font-size:13px;font-weight:700;cursor:pointer}
+.approve-btn:hover{background:#3a7a5f}
+.reject-btn{padding:8px 18px;background:rgba(229,85,85,.2);color:#ff8888;border:1.5px solid rgba(229,85,85,.3);border-radius:50px;font-size:13px;font-weight:700;cursor:pointer}
+.reject-btn:hover{background:rgba(229,85,85,.35)}
+.admin-section{font-size:11px;font-weight:700;color:rgba(255,255,255,.4);letter-spacing:.08em;text-transform:uppercase;margin-bottom:14px}
+.empty-admin{text-align:center;padding:40px;color:rgba(255,255,255,.3);font-size:14px}
+.approved-card{background:rgba(45,106,79,.2);border:1px solid rgba(45,106,79,.3);border-radius:12px;padding:12px 18px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between}
+.revoke-btn{padding:5px 14px;background:rgba(229,85,85,.15);color:#ff8888;border:1.5px solid rgba(229,85,85,.25);border-radius:50px;font-size:11px;font-weight:700;cursor:pointer}
+.export-filter-btn{padding:6px 16px;border-radius:50px;border:1.5px solid rgba(255,255,255,.2);background:transparent;color:rgba(255,255,255,.5);font-size:12px;font-weight:700;cursor:pointer;transition:all .15s}
+.export-filter-btn.active{background:rgba(52,200,120,.3);border-color:rgba(52,200,120,.6);color:#7eedb8}
 
-/* 좌측 패널 */
-.sidebar{background:#1a2942;border-right:1px solid rgba(255,255,255,.08);padding:20px 18px;overflow-y:auto}
-.section-title{font-size:10px;font-weight:700;color:rgba(255,255,255,.35);letter-spacing:.1em;text-transform:uppercase;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center}
-.seller-input-wrap{display:flex;gap:6px;margin-bottom:8px}
-.seller-input{flex:1;background:rgba(255,255,255,.07);border:1.5px solid rgba(255,255,255,.12);border-radius:10px;padding:9px 13px;font-size:13px;color:#fff;outline:none;transition:all .2s}
-.seller-input:focus{border-color:rgba(52,152,219,.6);background:rgba(52,152,219,.08)}
-.seller-input::placeholder{color:rgba(255,255,255,.25)}
-.add-btn{padding:9px 14px;background:#3498db;border:none;border-radius:10px;color:#fff;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;transition:all .2s}
-.add-btn:hover{background:#2980b9}
-
-/* 셀러 리스트 */
-.seller-list{display:flex;flex-direction:column;gap:5px;margin-bottom:16px;max-height:320px;overflow-y:auto}
-.seller-item{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:8px 12px;transition:all .2s;cursor:pointer}
-.seller-item:hover{background:rgba(52,152,219,.1);border-color:rgba(52,152,219,.3)}
-.seller-item.active{background:rgba(52,152,219,.15);border-color:rgba(52,152,219,.5)}
-.seller-item.loading{opacity:.6}
-.seller-dot{width:8px;height:8px;border-radius:50%;background:#555;flex-shrink:0}
-.seller-dot.ok{background:#2ecc71}
-.seller-dot.loading{background:#f39c12;animation:pulse 1s infinite}
-.seller-dot.error{background:#e74c3c}
-.seller-name{flex:1;font-size:13px;font-weight:600;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.seller-count{font-size:11px;color:rgba(255,255,255,.4)}
-.seller-del{width:20px;height:20px;border-radius:50%;background:rgba(231,76,60,.2);border:none;color:#e74c3c;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;opacity:0;transition:opacity .2s}
-.seller-item:hover .seller-del{opacity:1}
-
-/* 스캔 버튼 */
-.scan-btn{width:100%;padding:13px;background:linear-gradient(135deg,#3498db,#2980b9);border:none;border-radius:12px;color:#fff;font-size:14px;font-weight:800;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:14px}
-.scan-btn:hover{transform:translateY(-1px);box-shadow:0 4px 20px rgba(52,152,219,.4)}
-.scan-btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
-
-/* 필터 */
-.filter-section{margin-bottom:14px}
-.filter-label{font-size:11px;color:rgba(255,255,255,.4);margin-bottom:6px}
-.filter-row{display:flex;gap:6px;flex-wrap:wrap}
-.filter-btn{padding:5px 12px;border-radius:50px;border:1.5px solid rgba(255,255,255,.12);background:transparent;color:rgba(255,255,255,.5);font-size:11px;font-weight:600;cursor:pointer;transition:all .15s}
-.filter-btn.on{background:rgba(52,152,219,.25);border-color:#3498db;color:#74c0fc}
-
-.sort-select{width:100%;background:rgba(255,255,255,.07);border:1.5px solid rgba(255,255,255,.12);border-radius:10px;padding:8px 12px;font-size:12px;color:#fff;outline:none;-webkit-appearance:none;cursor:pointer}
-.sort-select option{background:#1a2942}
-
-/* 우측 결과 패널 */
-.results{background:#0f1923;padding:20px 24px;overflow-y:auto}
-
-/* 요약 카드 */
-.summary-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px}
-.sum-card{background:#1a2942;border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:14px 16px}
-.sum-label{font-size:10px;color:rgba(255,255,255,.4);font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px}
-.sum-val{font-size:22px;font-weight:900;color:#fff;letter-spacing:-1px}
-.sum-val.blue{color:#74c0fc}
-.sum-val.green{color:#2ecc71}
-.sum-val.yellow{color:#f1c40f}
-
-/* 진행 바 */
-.progress-wrap{background:#1a2942;border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:14px 18px;margin-bottom:16px;display:none}
-.progress-label{font-size:12px;color:rgba(255,255,255,.5);margin-bottom:8px}
-.progress-bar{height:6px;background:rgba(255,255,255,.1);border-radius:3px;overflow:hidden}
-.progress-fill{height:100%;background:linear-gradient(90deg,#3498db,#2ecc71);border-radius:3px;transition:width .3s;width:0%}
-.progress-status{font-size:11px;color:rgba(255,255,255,.35);margin-top:6px}
-
-/* 상품 테이블 */
-.table-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
-.table-title{font-size:13px;font-weight:700;color:rgba(255,255,255,.6);letter-spacing:.04em;text-transform:uppercase}
-.items-count{font-size:12px;color:rgba(255,255,255,.35)}
-
-.item-grid{display:flex;flex-direction:column;gap:6px}
-.item-row{display:grid;grid-template-columns:56px 1fr 90px 80px 70px 70px 100px;gap:12px;align-items:center;background:#1a2942;border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:10px 14px;transition:all .2s}
-.item-row:hover{background:#1e3356;border-color:rgba(52,152,219,.3)}
-.item-row.header-row{background:transparent;border-color:transparent;padding:4px 14px}
-.item-row.header-row span{font-size:10px;font-weight:700;color:rgba(255,255,255,.3);letter-spacing:.06em;text-transform:uppercase}
-
-.item-img{width:56px;height:56px;border-radius:8px;object-fit:cover;background:#0f1923;border:1px solid rgba(255,255,255,.08);flex-shrink:0}
-.item-img-placeholder{width:56px;height:56px;border-radius:8px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
-
-.item-title{overflow:hidden}
-.item-name{font-size:12px;font-weight:600;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:3px}
-.item-meta{font-size:10px;color:rgba(255,255,255,.3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.item-seller-tag{display:inline-block;background:rgba(52,152,219,.2);color:#74c0fc;border-radius:4px;padding:1px 6px;font-size:10px;font-weight:600;margin-right:4px}
-
-.item-price{font-size:14px;font-weight:900;color:#fff;letter-spacing:-.3px}
-.item-price-sub{font-size:10px;color:rgba(255,255,255,.3);margin-top:1px}
-
-.sold-badge{display:inline-block;background:rgba(46,204,113,.15);border:1px solid rgba(46,204,113,.3);color:#2ecc71;border-radius:6px;padding:3px 10px;font-size:13px;font-weight:800}
-.sold-badge.zero{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.1);color:rgba(255,255,255,.3)}
-
-.stock-badge{display:inline-block;border-radius:6px;padding:3px 9px;font-size:11px;font-weight:700}
-.stock-badge.low{background:rgba(231,76,60,.15);border:1px solid rgba(231,76,60,.3);color:#e74c3c}
-.stock-badge.mid{background:rgba(241,196,15,.1);border:1px solid rgba(241,196,15,.25);color:#f1c40f}
-.stock-badge.high{background:rgba(52,152,219,.1);border:1px solid rgba(52,152,219,.2);color:#74c0fc}
-.stock-badge.unknown{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.3)}
-
-.item-link{display:inline-flex;align-items:center;gap:4px;background:rgba(52,152,219,.15);border:1px solid rgba(52,152,219,.3);color:#74c0fc;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;text-decoration:none;transition:all .2s}
-.item-link:hover{background:rgba(52,152,219,.3)}
-
-/* 빈 상태 */
-.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:80px 20px;color:rgba(255,255,255,.2)}
-.empty-icon{font-size:48px;margin-bottom:16px;opacity:.5}
-.empty-text{font-size:14px;text-align:center;line-height:1.6}
-
-/* 에러 */
-.error-msg{background:rgba(231,76,60,.1);border:1px solid rgba(231,76,60,.25);border-radius:10px;padding:12px 16px;font-size:12px;color:#e74c3c;margin-bottom:10px}
-
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
-@keyframes spin{to{transform:rotate(360deg)}}
-.spinner{width:16px;height:16px;border:2px solid rgba(255,255,255,.2);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite}
-
-/* 모바일 대응 */
-@media(max-width:900px){
-  .main{grid-template-columns:1fr}
-  .sidebar{border-right:none;border-bottom:1px solid rgba(255,255,255,.08)}
-  .summary-grid{grid-template-columns:1fr 1fr}
-  .item-row{grid-template-columns:44px 1fr 70px 60px}
+/* ── 메인 앱 (기존 스타일 그대로) */
+.app{display:none;grid-template-columns:400px 1fr;min-height:100vh}
+.left{background:#2e5f5a;padding:28px 24px;display:flex;flex-direction:column;gap:0;overflow-y:auto}
+@media(max-width:768px){
+  .app{grid-template-columns:1fr;grid-template-rows:auto auto}
+  .left{padding:20px 16px;overflow-y:visible}
+  .right{padding:20px 16px;overflow-y:visible}
+  .dash-top{grid-template-columns:1fr 1fr;gap:8px}
+  .svc-cards{grid-template-columns:1fr}
+  .g2{grid-template-columns:1fr 1fr}
+  .g3{grid-template-columns:1fr 1fr}
+  .tbl-wrap{overflow-x:auto}
+  table{min-width:600px}
+  .stat-val{font-size:18px}
+  .logo{font-size:16px}
 }
+.logo{font-size:18px;font-weight:900;letter-spacing:-.5px;margin-bottom:4px}
+.logo-sub{font-size:11px;color:rgba(255,255,255,.45);margin-bottom:24px;line-height:1.6}
+.user-bar{display:flex;align-items:center;justify-content:space-between;background:rgba(0,0,0,.15);border-radius:50px;padding:6px 14px;margin-bottom:16px}
+.user-bar span{font-size:12px;font-weight:700;color:rgba(255,255,255,.7)}
+.logout-btn{font-size:11px;color:rgba(255,255,255,.4);background:none;border:none;cursor:pointer;text-decoration:underline}
+.logout-btn:hover{color:#fff}
+.tabs{display:flex;gap:4px;margin-bottom:22px;background:rgba(0,0,0,.2);border-radius:50px;padding:4px}
+.tab{flex:1;text-align:center;padding:8px 0;border-radius:50px;font-size:13px;font-weight:700;cursor:pointer;border:none;color:rgba(255,255,255,.55);background:transparent;transition:all .2s}
+.tab.on{background:#fff;color:#2e5f5a}
+.pane{display:none}.pane.on{display:block}
+.field{margin-bottom:11px}
+.field label{display:block;font-size:10px;font-weight:700;color:rgba(255,255,255,.5);margin-bottom:4px;letter-spacing:.05em;text-transform:uppercase}
+.field input,.field select{width:100%;padding:10px 14px;border:1.5px solid rgba(255,255,255,.15);border-radius:50px;font-size:13px;color:#fff;background:rgba(255,255,255,.1);outline:none;transition:all .2s;-webkit-appearance:none;appearance:none}
+.field select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='7'%3E%3Cpath d='M0 0l5 7 5-7z' fill='rgba(255,255,255,0.5)'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;padding-right:32px}
+.field input:focus,.field select:focus{border-color:rgba(255,255,255,.5);background:rgba(255,255,255,.18)}
+.field input::placeholder{color:rgba(255,255,255,.3)}
+.field select option{background:#2e5f5a;color:#fff}
+.field select optgroup{background:#1e3a37}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
+.btn{width:100%;padding:13px;background:#fff;color:#2e5f5a;border:none;border-radius:50px;font-size:14px;font-weight:900;cursor:pointer;margin-top:6px;transition:all .2s}
+.btn:hover{background:#e8f5ee;transform:translateY(-1px)}
+.btn-add{width:100%;padding:11px;background:rgba(255,255,255,.15);color:#fff;border:1.5px solid rgba(255,255,255,.25);border-radius:50px;font-size:13px;font-weight:700;cursor:pointer;margin-top:4px;transition:all .2s}
+.btn-add:hover{background:rgba(255,255,255,.25)}
+.sec-title{font-size:10px;font-weight:700;color:rgba(255,255,255,.45);letter-spacing:.08em;text-transform:uppercase;margin:16px 0 8px}
+.divider{border:none;border-top:1px solid rgba(255,255,255,.1);margin:16px 0}
+.ddpbox{background:rgba(100,150,255,.15);border:1.5px solid rgba(100,150,255,.3);border-radius:12px;padding:12px 14px;margin-bottom:12px;display:none}
+.ddpt{font-size:10px;font-weight:800;color:#93b4ff;margin-bottom:8px;letter-spacing:.05em}
+.ddpn{font-size:10px;color:#93b4ff;margin-top:6px;line-height:1.5}
+.rate-bar{display:flex;align-items:center;gap:8px;background:rgba(0,0,0,.2);border-radius:10px;padding:10px 14px;margin-bottom:14px}
+.rate-bar label{font-size:12px;font-weight:700;color:rgba(255,255,255,.6);white-space:nowrap}
+.rate-bar input{flex:1;border:1.5px solid rgba(255,255,255,.2);border-radius:30px;padding:6px 12px;font-size:15px;font-weight:900;color:#fff;background:rgba(255,255,255,.12);outline:none;max-width:110px}
+.rate-bar span{font-size:12px;color:rgba(255,255,255,.4)}
+.inp-box{background:rgba(0,0,0,.15);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:12px 14px;margin-bottom:10px}
+.right{background:#f4f6f4;padding:28px 32px;overflow-y:auto;display:flex;flex-direction:column}
+.ship-result{display:none}
+.res-header{font-size:12px;font-weight:700;color:#aaa;letter-spacing:.06em;margin-bottom:14px}
+.svc-cards{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:0}
+.sc{border:2px solid #eee;border-radius:14px;overflow:hidden;background:#fff}
+.sc-head{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:#f8f8f8;font-size:13px;font-weight:800;color:#444}
+.bdg{font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px}
+.bs{background:#e8f5ee;color:#2d6a4f}.be{background:#fff3e0;color:#b5621e}.bf{background:#f3effe;color:#6d28d9}.bn{background:#f0f0f0;color:#bbb}
+.sc-body{padding:14px}
+.price-big{font-size:26px;font-weight:900;color:#111;letter-spacing:-1.5px;line-height:1}
+.price-big span{font-size:13px;font-weight:500;color:#bbb}
+.wt-tag{display:inline-block;font-size:10px;background:#f0f0f0;border-radius:4px;padding:2px 7px;color:#aaa;margin:5px 0 10px}
+.dl{display:flex;justify-content:space-between;font-size:11px;color:#bbb;padding:2px 0}
+.dl span{color:#444;font-weight:600}
+.tot-line{display:flex;justify-content:space-between;font-weight:800;font-size:12px;border-top:1px solid #eee;padding-top:6px;margin-top:5px}
+.tot-val{font-size:14px;color:#222}
+.en{font-size:10px;color:#bbb;margin-top:2px}
+.na-msg{font-size:12px;color:#ccc;padding:4px 0}
+.sn{display:inline-block;font-size:10px;background:#e8f5ee;color:#2d6a4f;border-radius:4px;padding:2px 7px;margin-top:5px;font-weight:700}
+.dash{display:none;flex-direction:column;gap:0;flex:1}
+.dash.on{display:flex}
+.dash-top{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+.stat-card{background:#fff;border-radius:14px;padding:16px 18px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+.stat-label{font-size:10px;font-weight:700;color:#aaa;letter-spacing:.05em;text-transform:uppercase;margin-bottom:6px}
+.stat-val{font-size:22px;font-weight:900;color:#222;letter-spacing:-1px}
+.stat-val.green{color:#2d6a4f}
+.stat-val.red{color:#e55}
+.stat-sub{font-size:11px;color:#bbb;margin-top:2px}
+.dash-title{font-size:12px;font-weight:700;color:#aaa;letter-spacing:.06em;text-transform:uppercase;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center}
+.clear-btn{font-size:11px;color:#bbb;background:none;border:none;cursor:pointer;text-decoration:underline;font-weight:600}
+.clear-btn:hover{color:#e55}
+.save-badge{font-size:10px;background:#e8f5ee;color:#2d6a4f;border-radius:20px;padding:2px 8px;font-weight:700;margin-left:6px}
+.tbl-wrap{background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.06);flex:1}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{background:#2e5f5a;color:#fff;padding:10px 12px;text-align:center;font-size:11px;font-weight:700;letter-spacing:.03em;white-space:nowrap}
+th:first-child{text-align:left;padding-left:16px}
+td{padding:10px 12px;border-bottom:1px solid #f4f4f4;text-align:center;vertical-align:middle;color:#222}
+td:first-child{text-align:left;padding-left:16px;color:#111}
+tr:last-child td{border:none}
+tr:hover td{background:#f8fff8}
+.pp{color:#2d6a4f;font-weight:900}.pn{color:#e55;font-weight:900}
+.mp{background:#e8f5ee;color:#2d6a4f;font-weight:800;border-radius:20px;padding:3px 10px;font-size:11px;display:inline-block}
+.mn{background:#ffeaea;color:#e55;font-weight:800;border-radius:20px;padding:3px 10px;font-size:11px;display:inline-block}
+.del-btn{background:#fff;color:#e55;border:1.5px solid #eee;padding:5px 12px;border-radius:20px;cursor:pointer;font-size:11px;font-weight:700;transition:all .2s}
+.del-btn:hover{border-color:#e55;background:#ffeaea}
+.edit-btn{background:#fff;color:#2e5f5a;border:1.5px solid #eee;padding:5px 12px;border-radius:20px;cursor:pointer;font-size:11px;font-weight:700;transition:all .2s;margin-right:4px}
+.edit-btn:hover{border-color:#2e5f5a;background:#e8f5ee}
+.btn-add-wrap{display:flex;gap:8px}
+.btn-cancel{flex:1;padding:11px;background:rgba(255,255,255,.08);color:rgba(255,255,255,.6);border:1.5px solid rgba(255,255,255,.2);border-radius:50px;font-size:13px;font-weight:700;cursor:pointer;transition:all .2s;display:none}
+.btn-cancel:hover{background:rgba(255,255,255,.15)}
+.empty{text-align:center;padding:60px 0;color:#ccc;font-size:14px}
+.foot-note{font-size:10px;color:#bbb;margin-top:10px;padding:0 4px}
+.watermark{position:fixed;bottom:14px;right:20px;font-size:12px;font-weight:700;color:rgba(0,0,0,.18);letter-spacing:.05em;pointer-events:none;z-index:999;user-select:none}
+.gf-btn{padding:5px 14px;border-radius:20px;border:1.5px solid #ddd;background:#fff;color:#555;font-size:11px;font-weight:700;cursor:pointer;transition:all .2s;white-space:nowrap}
+.gf-btn.active{background:#2e5f5a;color:#fff;border-color:#2e5f5a}
+.gf-btn:hover{border-color:#2e5f5a;color:#2e5f5a}
+.url-section{margin-bottom:8px}
+.url-section-label{font-size:10px;font-weight:700;color:rgba(255,255,255,.5);letter-spacing:.05em;text-transform:uppercase;margin-bottom:5px;display:flex;justify-content:space-between;align-items:center}
+.url-row{display:flex;gap:5px;margin-bottom:4px;align-items:center}
+.url-row input{flex:1;padding:8px 12px;border:1.5px solid rgba(255,255,255,.15);border-radius:50px;font-size:12px;color:#fff;background:rgba(255,255,255,.08);outline:none}
+.url-row input:focus{border-color:rgba(255,255,255,.4);background:rgba(255,255,255,.15)}
+.url-row input::placeholder{color:rgba(255,255,255,.25)}
+.url-add-btn{width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,.15);border:1.5px solid rgba(255,255,255,.25);color:#fff;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;line-height:1}
+.url-add-btn:hover{background:rgba(255,255,255,.28)}
+.url-del-btn{width:22px;height:22px;border-radius:50%;background:rgba(255,60,60,.2);border:1.5px solid rgba(255,80,80,.3);color:#ff8888;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;line-height:1}
+.url-del-btn:hover{background:rgba(255,60,60,.4)}
+.url-count{font-size:9px;color:rgba(255,255,255,.3);font-weight:400}
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1000;display:flex;align-items:center;justify-content:center}
+.modal-box{background:#fff;border-radius:18px;padding:28px 28px 22px;min-width:320px;box-shadow:0 8px 40px rgba(0,0,0,.18)}
+.modal-title{font-size:15px;font-weight:900;color:#1e3a37;margin-bottom:16px}
+.modal-input{width:100%;padding:10px 16px;border:2px solid #ddd;border-radius:50px;font-size:14px;outline:none;margin-bottom:14px;box-sizing:border-box}
+.modal-input:focus{border-color:#2e5f5a}
+.modal-btns{display:flex;gap:8px;justify-content:flex-end}
+.modal-ok{padding:9px 22px;background:#2e5f5a;color:#fff;border:none;border-radius:50px;font-size:13px;font-weight:800;cursor:pointer}
+.modal-cancel{padding:9px 18px;background:#f0f0f0;color:#555;border:none;border-radius:50px;font-size:13px;font-weight:700;cursor:pointer}
+.grp-title{font-size:11px;font-weight:800;color:#2e5f5a;letter-spacing:.04em;padding:8px 16px 4px;background:#f0f7f4;border-bottom:1px solid #e0ede8}
+.sync-indicator{font-size:10px;color:rgba(255,255,255,.35);margin-left:6px}
+.dash#dash-sales{display:none}
+.dash#dash-sales.on{display:flex}
+.sales-qty-input{width:64px;padding:5px 8px;border:1.5px solid #ddd;border-radius:20px;font-size:13px;text-align:center;outline:none;color:#222}
+.sales-qty-input:focus{border-color:#2e5f5a}
+.sales-save-btn{padding:6px 16px;background:#2e5f5a;color:#fff;border:none;border-radius:20px;font-size:12px;font-weight:700;cursor:pointer}
+.sales-save-btn:hover{background:#3a7a72}
+.log-del-btn{background:#fff;color:#e55;border:1.5px solid #eee;padding:4px 10px;border-radius:16px;cursor:pointer;font-size:11px;font-weight:700}
+.log-del-btn:hover{border-color:#e55;background:#ffeaea}
+.log-tab-btn{padding:4px 14px;border:none;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer;background:transparent;color:#888;transition:all .15s}
+.log-tab-btn.log-tab-on{background:#fff;color:#2e5f5a;box-shadow:0 1px 4px rgba(0,0,0,.1)}
+.search-wrap{position:relative;margin-bottom:11px}
+.search-wrap label{display:block;font-size:10px;font-weight:700;
+  color:rgba(255,255,255,.5);margin-bottom:4px;
+  letter-spacing:.05em;text-transform:uppercase}
+.sel-disp{display:flex;align-items:center;gap:6px;padding:10px 14px;
+  border:1.5px solid rgba(255,255,255,.3);border-radius:50px;
+  background:rgba(255,255,255,.18);cursor:pointer;font-size:13px;color:#fff}
+.sel-disp .clr{margin-left:auto;opacity:.5;cursor:pointer;font-size:14px}
+.cc-dd{position:absolute;top:100%;left:0;right:0;background:#1e4a46;
+  border:1.5px solid rgba(255,255,255,.2);border-radius:12px;
+  max-height:240px;overflow-y:auto;z-index:999;display:none;
+  margin-top:4px;box-shadow:0 8px 24px rgba(0,0,0,.3)}
+.cc-dd.open{display:block}
+.csearch{width:100%;padding:10px 14px;background:rgba(255,255,255,.1);
+  border:none;border-bottom:1px solid rgba(255,255,255,.1);
+  color:#fff;font-size:13px;outline:none;border-radius:12px 12px 0 0}
+.csearch::placeholder{color:rgba(255,255,255,.4)}
+.copt{padding:9px 14px;font-size:13px;color:#fff;cursor:pointer;
+  display:flex;align-items:center;gap:8px;
+  border-bottom:1px solid rgba(255,255,255,.05)}
+.copt:last-child{border:none}
+.copt:hover{background:rgba(255,255,255,.15)}
+.copt .cc{font-size:10px;color:rgba(255,255,255,.4);margin-left:auto}
 </style>
 </head>
 <body>
 
-<!-- 헤더 -->
-<div class="header">
-  <div class="header-logo">
-    <svg width="52" height="22" viewBox="0 0 310 130" xmlns="http://www.w3.org/2000/svg">
-      <path d="M32,65 C32,40 48,22 74,22 C100,22 114,40 114,65 C114,68 114,71 113,74 L48,74 C50,86 60,93 74,93 C84,93 91,89 96,83 L110,92 C102,103 89,110 74,110 C47,110 32,92 32,65 Z M48,62 L98,62 C96,50 87,43 74,43 C61,43 51,50 48,62 Z" fill="#E53238"/>
-      <path d="M122,10 L140,10 L140,50 C146,42 155,38 166,38 C188,38 204,55 204,74 C204,93 188,110 166,110 C155,110 146,106 140,98 L140,108 L122,108 Z M140,74 C140,84 149,93 160,93 C171,93 180,84 180,74 C180,64 171,55 160,55 C149,55 140,64 140,74 Z" fill="#0064D2"/>
-      <path d="M212,92 L228,83 C233,90 240,94 250,94 C258,94 263,90 263,85 C263,80 258,77 246,74 C230,70 216,64 216,49 C216,42 222,22 250,22 C264,22 275,28 282,38 L267,48 C263,42 257,38 250,38 C242,38 236,42 236,48 C236,53 241,56 252,59 C270,64 283,70 283,85 C283,99 271,110 250,110 C234,110 221,103 212,92 Z" fill="#F5AF02"/>
-      <path d="M292,40 L272,90 C264,111 255,122 234,122 L234,105 C244,105 249,100 254,88 L220,40 L241,40 L263,78 L285,40 Z" fill="#86B817"/>
-    </svg>
-    <span class="header-title">셀러박스 리서치</span>
-    <span class="header-sub">eBay 셀러 상품 분석 툴</span>
-  </div>
-  <div class="header-right">
-    <div class="stat-pill">셀러 <strong id="hdr_sellers">0</strong>명</div>
-    <div class="stat-pill">상품 <strong id="hdr_items">0</strong>개</div>
-    <div class="stat-pill">총 판매 <strong id="hdr_sold">0</strong>개</div>
+<!-- ══════════════════════════════
+     로그인 / 회원가입 화면
+══════════════════════════════ -->
+<div class="auth-wrap" id="auth_wrap">
+  <div class="auth-box">
+    <!-- eBay 셀러박스 로그인 로고 -->
+    <div class="auth-logo" style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+      <!-- eBay 로고: 각 글자별 공식 색상 -->
+      <span style="font-size:34px;font-weight:900;font-family:Georgia,serif;letter-spacing:-1px;line-height:1;flex-shrink:0">
+        <span style="color:#E53238">e</span><span style="color:#0064D2">B</span><span style="color:#F5AF02">a</span><span style="color:#86B817">y</span>
+      </span>
+      <!-- 셀러박스 텍스트 -->
+      <span style="font-size:26px;font-weight:800;color:#fff;letter-spacing:-0.3px">셀러박스</span>
+    </div>
+    <div class="auth-sub">배송비 · 마진 · 판매실적 올인원 툴<br>로그인 후 모든 기기에서 데이터 동기화</div>
+    <div class="auth-tabs">
+      <button class="auth-tab on" onclick="switchAuthTab('login')">로그인</button>
+      <button class="auth-tab" onclick="switchAuthTab('signup')">회원가입</button>
+    </div>
+
+    <!-- 로그인 -->
+    <div class="auth-pane on" id="auth-login">
+      <div class="auth-field">
+        <label>아이디</label>
+        <input type="text" id="login_id" placeholder="예: ebay123" autocomplete="username" onkeydown="if(event.key==='Enter')doLogin()">
+      </div>
+      <div class="auth-field">
+        <label>비밀번호</label>
+        <input type="password" id="login_pw" placeholder="비밀번호" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
+      </div>
+      <button class="auth-btn" onclick="doLogin()" id="login_btn">로그인</button>
+      <div class="auth-msg" id="login_msg"></div>
+    </div>
+
+    <!-- 회원가입 -->
+    <div class="auth-pane" id="auth-signup">
+      <div class="auth-field">
+        <label>아이디 <span style="font-size:9px;color:rgba(255,255,255,.3);font-weight:400">(영문/숫자, 4~20자)</span></label>
+        <input type="text" id="signup_id" placeholder="예: ebay123" maxlength="20" onkeydown="if(event.key==='Enter')doSignup()">
+      </div>
+      <div class="auth-field">
+        <label>비밀번호 <span style="font-size:9px;color:rgba(255,255,255,.3);font-weight:400">(6자 이상)</span></label>
+        <input type="password" id="signup_pw" placeholder="비밀번호" onkeydown="if(event.key==='Enter')doSignup()">
+      </div>
+      <div class="auth-field">
+        <label>비밀번호 확인</label>
+        <input type="password" id="signup_pw2" placeholder="비밀번호 재입력" onkeydown="if(event.key==='Enter')doSignup()">
+      </div>
+      <button class="auth-btn" onclick="doSignup()" id="signup_btn">가입 신청</button>
+      <div class="auth-msg" id="signup_msg"></div>
+    </div>
   </div>
 </div>
 
-<div class="main">
-
-<!-- 좌측 사이드바 -->
-<div class="sidebar">
-
-  <!-- 셀러 추가 -->
-  <div class="section-title">
-    <span>📋 셀러 목록</span>
-    <span id="seller_count_label" style="color:rgba(255,255,255,.35);font-weight:400;font-size:10px">0명 등록</span>
-  </div>
-
-  <div class="seller-input-wrap">
-    <input class="seller-input" id="seller_input" type="text"
-      placeholder="eBay 셀러 아이디 입력"
-      onkeydown="if(event.key==='Enter')addSeller()">
-    <button class="add-btn" onclick="addSeller()">+ 추가</button>
-  </div>
-
-  <div class="seller-list" id="seller_list">
-    <div style="text-align:center;padding:20px 0;font-size:12px;color:rgba(255,255,255,.2)">
-      셀러를 추가해주세요
+<!-- ══════════════════════════════
+     관리자 패널 (버거왕 전용)
+══════════════════════════════ -->
+<div class="admin-wrap" id="admin_wrap">
+  <div class="admin-header">
+    <div>
+      <div class="admin-title">🛒 eBay 셀러박스 — 관리자</div>
+      <div style="font-size:12px;color:rgba(255,255,255,.4);margin-top:4px">회원가입 승인 / 관리</div>
+    </div>
+    <div style="display:flex;gap:10px;align-items:center">
+      <button class="admin-logout" onclick="exportUsers()" style="background:rgba(52,200,120,.2);border-color:rgba(52,200,120,.4);color:#7eedb8">📥 계정 내보내기</button>
+      <button class="admin-logout" onclick="openApp()">📊 계산기 열기</button>
+      <button class="admin-logout" onclick="logout()">로그아웃</button>
     </div>
   </div>
 
-  <!-- 스캔 버튼 -->
-  <button class="scan-btn" id="scan_btn" onclick="startScan()">
-    <span>🔍</span>
-    <span id="scan_btn_text">전체 셀러 스캔</span>
-  </button>
-
-  <hr style="border:none;border-top:1px solid rgba(255,255,255,.07);margin-bottom:14px">
-
-  <!-- 정렬 -->
-  <div class="filter-section">
-    <div class="filter-label">정렬 기준</div>
-    <select class="sort-select" id="sort_select" onchange="sortAndRender()">
-      <option value="sold_desc">판매량 높은 순 ↓</option>
-      <option value="sold_asc">판매량 낮은 순 ↑</option>
-      <option value="price_desc">가격 높은 순 ↓</option>
-      <option value="price_asc">가격 낮은 순 ↑</option>
-      <option value="stock_asc">재고 적은 순 (긴급)</option>
-      <option value="title_asc">상품명 가나다순</option>
-    </select>
-  </div>
-
-  <!-- 셀러 필터 -->
-  <div class="filter-section">
-    <div class="filter-label">셀러 필터</div>
-    <div class="filter-row" id="seller_filter_row">
-      <button class="filter-btn on" data-seller="all" onclick="setSellerFilter('all',this)">전체</button>
+  <!-- 내보내기 옵션 패널 -->
+  <div id="export_panel" style="display:none;background:rgba(52,200,120,.08);border:1.5px solid rgba(52,200,120,.25);border-radius:16px;padding:18px 22px;margin-bottom:22px">
+    <div style="font-size:13px;font-weight:800;color:#7eedb8;margin-bottom:14px">📥 계정 목록 내보내기</div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+      <button class="export-filter-btn active" id="ef_all" onclick="setExportFilter('all')">전체</button>
+      <button class="export-filter-btn" id="ef_approved" onclick="setExportFilter('approved')">✅ 승인됨만</button>
+      <button class="export-filter-btn" id="ef_pending" onclick="setExportFilter('pending')">⏳ 대기중만</button>
+      <button class="export-filter-btn" id="ef_rejected" onclick="setExportFilter('rejected')">❌ 거절됨만</button>
+      <div style="flex:1"></div>
+      <button onclick="doExportCSV()" style="padding:9px 22px;background:#34c878;color:#fff;border:none;border-radius:50px;font-size:13px;font-weight:800;cursor:pointer">💾 CSV 다운로드</button>
+      <button onclick="document.getElementById('export_panel').style.display='none'" style="padding:9px 16px;background:rgba(255,255,255,.1);color:rgba(255,255,255,.5);border:none;border-radius:50px;font-size:12px;font-weight:700;cursor:pointer">닫기</button>
     </div>
+    <div id="export_preview" style="margin-top:14px;font-size:11px;color:rgba(255,255,255,.4)"></div>
   </div>
 
-  <!-- sold 필터 -->
-  <div class="filter-section">
-    <div class="filter-label">판매량 필터</div>
-    <div class="filter-row">
-      <button class="filter-btn on" data-sold="all" onclick="setSoldFilter('all',this)">전체</button>
-      <button class="filter-btn" data-sold="1" onclick="setSoldFilter('1',this)">1개↑</button>
-      <button class="filter-btn" data-sold="10" onclick="setSoldFilter('10',this)">10개↑</button>
-      <button class="filter-btn" data-sold="50" onclick="setSoldFilter('50',this)">50개↑</button>
-      <button class="filter-btn" data-sold="100" onclick="setSoldFilter('100',this)">100개↑</button>
-    </div>
-  </div>
+  <div class="admin-section">⏳ 승인 대기 중</div>
+  <div id="pending_list"></div>
 
-  <!-- CSV 내보내기 -->
-  <button onclick="exportCSV()" style="width:100%;padding:9px;background:rgba(46,204,113,.15);border:1.5px solid rgba(46,204,113,.3);color:#2ecc71;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;margin-top:4px">
-    📥 CSV 내보내기
-  </button>
+  <div class="admin-section" style="margin-top:28px">✅ 승인된 계정</div>
+  <div id="approved_list"></div>
+
+  <div class="admin-section" style="margin-top:28px">❌ 거절된 계정</div>
+  <div id="rejected_list"></div>
 </div>
 
-<!-- 우측 결과 -->
-<div class="results" id="results_panel">
-
-  <!-- 요약 카드 -->
-  <div class="summary-grid">
-    <div class="sum-card">
-      <div class="sum-label">스캔 상품 수</div>
-      <div class="sum-val blue" id="sum_items">-</div>
-    </div>
-    <div class="sum-card">
-      <div class="sum-label">총 판매량 (sold)</div>
-      <div class="sum-val green" id="sum_sold">-</div>
-    </div>
-    <div class="sum-card">
-      <div class="sum-label">최고 판매 상품</div>
-      <div class="sum-val yellow" id="sum_top">-</div>
-    </div>
-    <div class="sum-card">
-      <div class="sum-label">판매 있는 상품</div>
-      <div class="sum-val" id="sum_has_sold">-</div>
+<!-- ══════════════════════════════
+     그룹명 변경 모달
+══════════════════════════════ -->
+<div class="modal-bg" id="rename_modal" style="display:none" onclick="if(event.target===this)closeRenameModal()">
+  <div class="modal-box">
+    <div class="modal-title">📁 그룹명 변경</div>
+    <input class="modal-input" id="rename_input" type="text" placeholder="새 그룹명 입력" onkeydown="if(event.key==='Enter')confirmRename()">
+    <div class="modal-btns">
+      <button class="modal-cancel" onclick="closeRenameModal()">취소</button>
+      <button class="modal-ok" onclick="confirmRename()">변경</button>
     </div>
   </div>
+</div>
 
-  <!-- 진행 상태 -->
-  <div class="progress-wrap" id="progress_wrap">
-    <div class="progress-label" id="progress_label">스캔 중...</div>
-    <div class="progress-bar"><div class="progress-fill" id="progress_fill"></div></div>
-    <div class="progress-status" id="progress_status"></div>
+<div class="watermark">🍔 made by 버거왕</div>
+
+<!-- ══════════════════════════════
+     메인 앱
+══════════════════════════════ -->
+<div class="app" id="main_app">
+<div class="left">
+  <!-- eBay 셀러박스 로고 -->
+  <div class="logo" style="display:flex;align-items:center;gap:8px;margin-bottom:2px">
+    <span style="font-size:28px;font-weight:900;font-family:Georgia,serif;letter-spacing:-1px;line-height:1;flex-shrink:0">
+      <span style="color:#E53238">e</span><span style="color:#0064D2">B</span><span style="color:#F5AF02">a</span><span style="color:#86B817">y</span>
+    </span>
+    <span style="font-size:19px;font-weight:900;color:#fff;letter-spacing:-.3px">셀러박스</span>
+  </div>
+  <div class="logo-sub">eGS · Rincos · FedEx 배송비 &nbsp;|&nbsp; 마진 &nbsp;|&nbsp; 판매실적<br>2026.03.26 운임표 기준 · EU FSC 2,000원/kg (2026.03.30~)</div>
+  <div class="user-bar">
+    <span id="current_user_label">👤 -</span>
+    <div style="display:flex;gap:8px">
+      <button class="logout-btn" id="admin_btn" onclick="openAdmin()" style="display:none">⚙ 관리자</button>
+      <button class="logout-btn" onclick="logout()">로그아웃</button>
+    </div>
   </div>
 
-  <!-- 테이블 헤더 -->
-  <div class="table-header">
-    <div class="table-title">상품 목록</div>
-    <div class="items-count" id="items_count_label">0개 표시</div>
+  <div class="tabs">
+    <button class="tab on" onclick="switchTab('ship')">✈ 배송비</button>
+    <button class="tab" onclick="switchTab('margin')">💰 마진</button>
+    <button class="tab" onclick="switchTab('sales')">📊 판매실적</button>
   </div>
 
-  <div class="item-row header-row">
-    <span></span>
-    <span>상품명</span>
-    <span>가격</span>
-    <span>Sold</span>
-    <span>재고</span>
-    <span>셀러</span>
-    <span></span>
+  <!-- 배송비 탭 -->
+  <div class="pane on" id="pane-ship">
+    <!-- 국가 검색 컴포넌트 (200개국+) -->
+    <div class="search-wrap">
+      <label>목적지 국가</label>
+      <div class="sel-disp" id="sel_disp" onclick="toggleDD()">
+        <span id="sel_txt">국가 선택 (검색 가능)</span>
+        <span class="clr" onclick="clearCC(event)">&#x2715;</span>
+      </div>
+      <div class="cc-dd" id="cc_dd">
+        <input class="csearch" id="cc_search"
+          placeholder="국가명 또는 코드  예) 미국 / US / Germany"
+          oninput="filterCC(this.value)"
+          onclick="event.stopPropagation()">
+        <div id="cc_list"></div>
+      </div>
+    </div>
+    <input type="hidden" id="co" value="">
+    <div class="field"><label>무게 (kg)</label><input type="number" id="wt" placeholder="무게 입력" min="0.01" max="500" step="0.01"></div>
+    <div class="g3" style="margin-bottom:11px">
+      <div class="field" style="margin:0"><label>가로 cm</label><input type="number" id="ln" placeholder="선택"></div>
+      <div class="field" style="margin:0"><label>세로 cm</label><input type="number" id="wd" placeholder="선택"></div>
+      <div class="field" style="margin:0"><label>높이 cm</label><input type="number" id="ht" placeholder="선택"></div>
+    </div>
+    <div class="ddpbox" id="ddpbox">
+      <div class="ddpt">DDP 관세 설정 (미국行 EMS · FedEx)</div>
+      <div class="g3">
+        <div class="field" style="margin:0"><label>상품가격 USD</label><input type="number" id="pu" placeholder="65"></div>
+        <div class="field" style="margin:0"><label>관세율 %</label><input type="number" id="tr" value="15" step="0.5"></div>
+        <div class="field" style="margin:0"><label>환율 KRW</label><input type="number" id="ex_s" value="1380" step="10"></div>
+      </div>
+      <div class="ddpn">Standard: 린코스 대납 — 추가 없음<br>FedEx: 관세대행 수수료 $15 포함</div>
+    </div>
+    <button class="btn" onclick="calcShip()">계산하기</button>
   </div>
 
-  <!-- 빈 상태 -->
-  <div class="empty-state" id="empty_state">
-    <div class="empty-icon">🔍</div>
-    <div class="empty-text">좌측에서 셀러를 추가하고<br>스캔 버튼을 눌러주세요</div>
+  <!-- 마진 탭 -->
+  <div class="pane" id="pane-margin">
+    <div class="rate-bar">
+      <label>💱 환율</label>
+      <input type="number" id="ex" value="1450" step="10" min="1000" max="2500" oninput="saveEx();render()">
+      <span>원/$</span>
+    </div>
+    <div class="sec-title">상품 정보 입력</div>
+    <div class="inp-box">
+      <div class="g2" style="margin-bottom:7px">
+        <div class="field" style="margin:0"><label>상품명</label><input type="text" id="fn" placeholder="예: 포켓몬 카드"></div>
+        <div class="field" style="margin:0"><label>판매가 ($)</label><input type="number" id="fp" placeholder="30" step="0.01" min="0"></div>
+      </div>
+      <div class="g3" style="margin-bottom:7px">
+        <div class="field" style="margin:0"><label>고객 배송비 ($)</label><input type="number" id="fs" placeholder="25" step="0.01" min="0"></div>
+        <div class="field" style="margin:0"><label>상품 원가 (원)</label><input type="number" id="fc" placeholder="30000" min="0"></div>
+        <div class="field" style="margin:0"><label>실제 배송비 (원)</label><input type="number" id="fsk" placeholder="30000" min="0"></div>
+      </div>
+      <div class="field" style="margin-bottom:7px">
+        <label>📁 그룹 태그</label>
+        <div style="display:flex;gap:6px">
+          <input type="text" id="fg" placeholder="예: 포켓몬, 신발..." style="flex:1;padding:10px 14px;border:1.5px solid rgba(255,255,255,.15);border-radius:50px;font-size:13px;color:#fff;background:rgba(255,255,255,.1);outline:none" oninput="syncGrpSel(this.value)">
+          <select id="fg_sel" onchange="document.getElementById('fg').value=this.value" style="width:110px;padding:8px 10px;border:1.5px solid rgba(255,255,255,.15);border-radius:50px;font-size:12px;color:#fff;background:rgba(255,255,255,.12);outline:none;-webkit-appearance:none;cursor:pointer">
+            <option value="">기존태그▾</option>
+          </select>
+        </div>
+      </div>
+      <div style="margin-bottom:7px">
+        <div class="field" style="margin:0 0 6px 0">
+          <label>eBay 카테고리</label>
+          <select id="ff_cat" onchange="applyEbayCat()">
+            <option value="">── 카테고리 선택 ──</option>
+            <optgroup label="📚 미디어 (15.3%)"><option value="15.3">📖 도서/블루레이/DVD/CD</option></optgroup>
+            <optgroup label="🎵 바이닐 (13.6%)"><option value="13.6">🎵 바이닐/LP</option></optgroup>
+            <optgroup label="🃏 트레이딩카드 (13.25%)"><option value="13.25">🐉 포켓몬/스포츠카드/CCG</option></optgroup>
+            <optgroup label="👟 신발"><option value="8.0">👟 운동화 $150↑ (8%)</option><option value="13.6">👟 운동화 $150↓ / 일반신발 (13.6%)</option></optgroup>
+            <optgroup label="👗 의류 (13.6%)"><option value="13.6">👗 의류/패션</option></optgroup>
+            <optgroup label="👜 가방"><option value="15.0">👜 명품백 $2,000↓ (15%)</option><option value="9.0">👜 명품백 $2,000↑ (9%)</option><option value="13.6">🎒 일반가방/캐리어 (13.6%)</option></optgroup>
+            <optgroup label="⌚ 시계"><option value="15.0">⌚ $1,000↓ (15%)</option><option value="6.5">⌚ $1,000~7,500 (6.5%)</option><option value="3.0">⌚ $7,500↑ (3%)</option></optgroup>
+            <optgroup label="📦 일반 (13.6%)"><option value="13.6">📱 전자기기/가전</option><option value="13.6">🧸 장난감/피규어/인형</option><option value="13.6">🎮 게임/콘솔</option><option value="13.6">🌐 기타 Most Categories</option></optgroup>
+            <optgroup label="✏️ 직접 입력"><option value="custom">수수료 직접 입력</option></optgroup>
+          </select>
+        </div>
+        <div class="g2">
+          <div class="field" style="margin:0">
+            <label>수수료 (%) <span id="ff_badge" style="font-size:9px;background:rgba(255,255,255,.15);border-radius:10px;padding:1px 6px;margin-left:2px;display:none"></span></label>
+            <input type="number" id="ff" placeholder="13.6" step="0.1" min="0" oninput="onFeeManualInput()">
+          </div>
+          <div class="field" style="margin:0"><label>광고 (%)</label><input type="number" id="ft" placeholder="2" step="0.1" min="0"></div>
+        </div>
+      </div>
+      <div class="g3" style="margin-bottom:7px">
+        <div class="field" style="margin:0"><label>HSCODE</label><input type="text" id="fh" placeholder="선택"></div>
+        <div class="field" style="margin:0"><label>원산지</label><input type="text" id="fo" placeholder="선택"></div>
+        <div></div>
+      </div>
+      <div class="url-section">
+        <div class="url-section-label"><span>📦 소싱 URL</span><span class="url-count" id="src_cnt">0/10</span></div>
+        <div id="src_url_list"></div>
+        <button class="url-add-btn" style="width:100%;border-radius:50px;height:28px;font-size:12px;margin-bottom:2px" onclick="addUrlRow('src')" id="src_add_btn">+ 추가</button>
+      </div>
+      <div class="url-section">
+        <div class="url-section-label"><span>🔗 참고 URL</span><span class="url-count" id="ref_cnt">0/10</span></div>
+        <div id="ref_url_list"></div>
+        <button class="url-add-btn" style="width:100%;border-radius:50px;height:28px;font-size:12px;margin-bottom:2px" onclick="addUrlRow('ref')" id="ref_add_btn">+ 추가</button>
+      </div>
+      <div class="url-section">
+        <div class="url-section-label"><span>🛒 내 판매 URL</span><span class="url-count" id="sale_cnt">0/10</span></div>
+        <div id="sale_url_list"></div>
+        <button class="url-add-btn" style="width:100%;border-radius:50px;height:28px;font-size:12px;margin-bottom:2px" onclick="addUrlRow('sale')" id="sale_add_btn">+ 추가</button>
+      </div>
+    </div>
+    <div class="btn-add-wrap">
+      <button class="btn-add" id="btn_add" onclick="addItem()" style="flex:1">+ 상품 추가</button>
+      <button class="btn-cancel" id="btn_cancel" onclick="cancelEdit()">✕ 취소</button>
+    </div>
   </div>
+</div>
 
-  <div class="item-grid" id="item_grid"></div>
+<!-- 우측 대시보드 -->
+<div class="right">
+  <div class="ship-result" id="ship_result">
+    <div class="res-header" id="ship_header"></div>
+    <div class="svc-cards" id="svc_cards"></div>
+  </div>
+  <div class="dash" id="dash">
+    <div class="dash-top" id="stat_cards">
+      <div class="stat-card"><div class="stat-label">상품 수</div><div class="stat-val" id="st_cnt">0</div><div class="stat-sub">개 등록됨</div></div>
+      <div class="stat-card"><div class="stat-label">평균 마진율</div><div class="stat-val green" id="st_margin">-</div><div class="stat-sub">전체 평균</div></div>
+      <div class="stat-card"><div class="stat-label">총 순이익</div><div class="stat-val green" id="st_profit">-</div><div class="stat-sub">원 합계</div></div>
+      <div class="stat-card"><div class="stat-label">부가세 환급 합계</div><div class="stat-val" style="color:#3451b2" id="st_vat">-</div><div class="stat-sub">원가 × 9.7%</div></div>
+    </div>
+    <div class="dash-title">
+      <span>마진 분석 결과 <span class="save-badge">☁ 클라우드 저장</span></span>
+      <button class="clear-btn" onclick="clearAll()">전체 초기화</button>
+    </div>
+    <div id="gf_bar" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px"></div>
+    <div class="tbl-wrap"><div id="mtbl"><div class="empty">← 좌측에서 상품을 추가하면 여기에 표시됩니다</div></div></div>
+    <div class="foot-note" id="foot_note"></div>
+  </div>
+  <div class="dash" id="dash-sales">
+    <div class="dash-top" id="sales_stats" style="grid-template-columns:repeat(5,1fr)">
+      <div class="stat-card"><div class="stat-label">총 판매 수량</div><div class="stat-val" id="ss_qty">0</div><div class="stat-sub">개 판매됨</div></div>
+      <div class="stat-card"><div class="stat-label">실제 총 매출</div><div class="stat-val green" id="ss_revenue">-</div><div class="stat-sub">판매가 기준</div></div>
+      <div class="stat-card"><div class="stat-label">실제 순이익</div><div class="stat-val green" id="ss_profit">-</div><div class="stat-sub">비용 차감 후</div></div>
+      <div class="stat-card"><div class="stat-label">실현 마진율</div><div class="stat-val green" id="ss_margin">-</div><div class="stat-sub">판매 기준 평균</div></div>
+      <div class="stat-card" style="border:2px solid #dde8ff;background:#f5f8ff"><div class="stat-label" style="color:#3451b2">💰 부가세 환급</div><div class="stat-val" id="ss_vat" style="color:#3451b2">-</div><div class="stat-sub" style="color:#3451b2">원가 × 9.7% 합계</div></div>
+    </div>
+    <div class="dash-title">
+      <span>📅 날짜별 판매 입력</span>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="date" id="sales_date" style="padding:5px 12px;border:1.5px solid #ddd;border-radius:20px;font-size:12px;color:#444;outline:none" oninput="renderSalesLog()">
+        <button class="clear-btn" onclick="clearSalesLog()" style="color:#e55">판매기록 초기화</button>
+      </div>
+    </div>
+    <div class="tbl-wrap" style="margin-bottom:16px"><div id="sales_input_tbl"><div class="empty">← 마진 탭에서 상품을 먼저 추가해주세요</div></div></div>
+    <div class="dash-title" style="margin-top:4px">
+      <div style="display:flex;align-items:center;gap:12px">
+        <span>📋 판매 기록 내역</span>
+        <div style="display:flex;gap:4px;background:#eee;border-radius:30px;padding:3px">
+          <button id="log_tab_day" class="log-tab-btn log-tab-on" onclick="setLogTab('day')">일별</button>
+          <button id="log_tab_month" class="log-tab-btn" onclick="setLogTab('month')">월별</button>
+        </div>
+      </div>
+      <div id="log_month_nav" style="display:none;align-items:center;gap:6px">
+        <button onclick="changeMonth(-1)" style="background:none;border:1.5px solid #ddd;border-radius:50%;width:26px;height:26px;cursor:pointer;font-size:14px;color:#444">‹</button>
+        <span id="log_month_label" style="font-size:13px;font-weight:700;color:#444;min-width:80px;text-align:center"></span>
+        <button onclick="changeMonth(1)" style="background:none;border:1.5px solid #ddd;border-radius:50%;width:26px;height:26px;cursor:pointer;font-size:14px;color:#444">›</button>
+      </div>
+    </div>
+    <div class="tbl-wrap" style="flex:1"><div id="sales_log_tbl"><div class="empty">아직 판매 기록이 없습니다</div></div></div>
+  </div>
 </div>
 </div>
 
 <script>
-// ── 상태
-let sellers = JSON.parse(localStorage.getItem('sb_sellers') || '[]');
-let allItems = [];
-let filteredItems = [];
-let activeSellerFilter = 'all';
-let activeSoldFilter = 'all';
-let isScanning = false;
+// ── 국가 검색 기능 ──────────────────────────────
+const COUNTRIES = [
+  ["AE","아랍에미리트","UAE"],["AF","아프가니스탄","Afghanistan"],["AG","앤티가바부다","Antigua"],
+  ["AL","알바니아","Albania"],["AM","아르메니아","Armenia"],["AO","앙골라","Angola"],
+  ["AR","아르헨티나","Argentina"],["AT","AT","Austria"],["AU","AU","Australia"],
+  ["AZ","아제르바이잔","Azerbaijan"],["BA","보스니아헤르체고비나","Bosnia"],["BB","바베이도스","Barbados"],
+  ["BD","방글라데시","Bangladesh"],["BE","BE","Belgium"],["BF","부르키나파소","Burkina Faso"],
+  ["BG","BG","Bulgaria"],["BH","바레인","Bahrain"],["BI","부룬디","Burundi"],
+  ["BJ","베냉","Benin"],["BN","브루나이","Brunei"],["BO","볼리비아","Bolivia"],
+  ["BR","BR","Brazil"],["BS","바하마","Bahamas"],["BT","부탄","Bhutan"],
+  ["BW","보츠와나","Botswana"],["BY","벨라루스","Belarus"],["BZ","벨리즈","Belize"],
+  ["CA","CA","Canada"],["CD","콩고민주공화국","DR Congo"],["CF","중앙아프리카공화국","C.Africa"],
+  ["CG","콩고","Congo"],["CH","스위스","Switzerland"],["CI","코트디부아르","Ivory Coast"],
+  ["CL","칠레","Chile"],["CM","카메룬","Cameroon"],["CN","CN","China"],
+  ["CO","콜롬비아","Colombia"],["CR","코스타리카","Costa Rica"],["CU","쿠바","Cuba"],
+  ["CV","카보베르데","Cape Verde"],["CY","CY","Cyprus"],["CZ","CZ","Czech Republic"],
+  ["DE","DE","Germany"],["DJ","지부티","Djibouti"],["DK","DK","Denmark"],
+  ["DM","도미니카","Dominica"],["DO","도미니카공화국","Dominican Rep"],["DZ","알제리","Algeria"],
+  ["EC","에콰도르","Ecuador"],["EE","EE","Estonia"],["EG","이집트","Egypt"],
+  ["ER","에리트레아","Eritrea"],["ES","ES","Spain"],["ET","에티오피아","Ethiopia"],
+  ["FI","FI","Finland"],["FJ","피지","Fiji"],["FR","FR","France"],
+  ["GA","가봉","Gabon"],["GB","GB","United Kingdom"],["GD","그레나다","Grenada"],
+  ["GE","조지아","Georgia"],["GH","가나","Ghana"],["GM","감비아","Gambia"],
+  ["GN","기니","Guinea"],["GQ","적도기니","Eq.Guinea"],["GR","GR","Greece"],
+  ["GT","과테말라","Guatemala"],["GW","기니비사우","Guinea-Bissau"],["GY","가이아나","Guyana"],
+  ["HK","HK","Hong Kong"],["HN","온두라스","Honduras"],["HR","HR","Croatia"],
+  ["HT","아이티","Haiti"],["HU","HU","Hungary"],["ID","ID","Indonesia"],
+  ["IE","IE","Ireland"],["IL","이스라엘","Israel"],["IN","IN","India"],
+  ["IQ","이라크","Iraq"],["IS","아이슬란드","Iceland"],["IT","IT","Italy"],
+  ["JM","자메이카","Jamaica"],["JO","요르단","Jordan"],["JP","JP","Japan"],
+  ["KE","케냐","Kenya"],["KG","키르기스스탄","Kyrgyzstan"],["KH","캄보디아","Cambodia"],
+  ["KN","세인트키츠네비스","St.Kitts"],["KW","쿠웨이트","Kuwait"],["KZ","카자흐스탄","Kazakhstan"],
+  ["LA","라오스","Laos"],["LB","레바논","Lebanon"],["LC","세인트루시아","St.Lucia"],
+  ["LI","리히텐슈타인","Liechtenstein"],["LK","스리랑카","Sri Lanka"],["LR","라이베리아","Liberia"],
+  ["LS","레소토","Lesotho"],["LT","LT","Lithuania"],["LU","LU","Luxembourg"],
+  ["LV","LV","Latvia"],["LY","리비아","Libya"],["MA","모로코","Morocco"],
+  ["MC","모나코","Monaco"],["MD","몰도바","Moldova"],["ME","몬테네그로","Montenegro"],
+  ["MG","마다가스카르","Madagascar"],["MK","북마케도니아","N.Macedonia"],["ML","말리","Mali"],
+  ["MN","몽골","Mongolia"],["MO","마카오","Macau"],["MR","모리타니","Mauritania"],
+  ["MT","MT","Malta"],["MU","모리셔스","Mauritius"],["MV","몰디브","Maldives"],
+  ["MW","말라위","Malawi"],["MX","멕시코","Mexico"],["MY","MY","Malaysia"],
+  ["MZ","모잠비크","Mozambique"],["NC","뉴칼레도니아","New Caledonia"],["NE","니제르","Niger"],
+  ["NG","나이지리아","Nigeria"],["NI","니카라과","Nicaragua"],["NL","NL","Netherlands"],
+  ["NO","노르웨이","Norway"],["NP","네팔","Nepal"],["NZ","NZ","New Zealand"],
+  ["OM","오만","Oman"],["PA","파나마","Panama"],["PE","페루","Peru"],
+  ["PF","프랑스령폴리네시아","Fr.Polynesia"],["PG","파푸아뉴기니","Papua NG"],["PH","PH","Philippines"],
+  ["PK","파키스탄","Pakistan"],["PL","PL","Poland"],["PR","푸에르토리코","Puerto Rico"],
+  ["PS","팔레스타인","Palestine"],["PT","PT","Portugal"],["PY","파라과이","Paraguay"],
+  ["QA","카타르","Qatar"],["RE","레위니옹","Reunion"],["RO","RO","Romania"],
+  ["RS","세르비아","Serbia"],["RU","RU","Russia"],["RW","르완다","Rwanda"],
+  ["SA","사우디아라비아","Saudi Arabia"],["SC","세이셸","Seychelles"],["SE","SE","Sweden"],
+  ["SG","SG","Singapore"],["SI","SI","Slovenia"],["SK","SK","Slovakia"],
+  ["SN","세네갈","Senegal"],["SR","수리남","Suriname"],["SV","엘살바도르","El Salvador"],
+  ["SY","시리아","Syria"],["SZ","에스와티니","Eswatini"],["TD","차드","Chad"],
+  ["TG","토고","Togo"],["TH","TH","Thailand"],["TL","동티모르","East Timor"],
+  ["TN","튀니지","Tunisia"],["TO","통가","Tonga"],["TR","터키","Turkey"],
+  ["TT","트리니다드토바고","Trinidad"],["TW","TW","Taiwan"],["TZ","탄자니아","Tanzania"],
+  ["UA","우크라이나","Ukraine"],["UG","우간다","Uganda"],["US","US","United States"],
+  ["UY","우루과이","Uruguay"],["UZ","우즈베키스탄","Uzbekistan"],["VC","세인트빈센트그레나딘","St.Vincent"],
+  ["VE","베네수엘라","Venezuela"],["VG","영국령버진아일랜드","BVI"],["VI","미국령버진아일랜드","US VI"],
+  ["VN","VN","Vietnam"],["VU","바누아투","Vanuatu"],["WS","사모아","Samoa"],
+  ["YE","예멘","Yemen"],["ZA","남아프리카공화국","South Africa"],["ZM","잠비아","Zambia"],
+  ["ZW","짐바브웨","Zimbabwe"],
+];
 
-// API 엔드포인트 (Vercel 배포 후 자동으로 같은 도메인)
-const API_BASE = '/api/ebay';
-
-// ── 초기화
-window.addEventListener('load', () => {
-  renderSellerList();
-  if (allItems.length) sortAndRender();
-});
-
-// ── 셀러 추가
-function addSeller() {
-  const input = document.getElementById('seller_input');
-  const raw = input.value.trim();
-  if (!raw) return;
-
-  // URL에서 셀러 아이디 추출
-  let seller = raw;
-  // https://www.ebay.com/usr/sellerid 형태
-  const usrMatch = raw.match(/ebay\.com\/usr\/([^/?&]+)/i);
-  // https://www.ebay.com/sch/i.html?_ssn=sellerid 형태
-  const ssnMatch = raw.match(/_ssn=([^&]+)/i);
-  if (usrMatch) seller = usrMatch[1];
-  else if (ssnMatch) seller = decodeURIComponent(ssnMatch[1]);
-
-  seller = seller.toLowerCase().trim();
-  if (!seller) return;
-  if (sellers.includes(seller)) { alert(`"${seller}" 이미 추가된 셀러예요`); return; }
-
-  sellers.push(seller);
-  saveSellers();
-  input.value = '';
-  renderSellerList();
-  updateSellerFilter();
+function getFlagEmoji(cc) {
+  return [...cc].map(c => String.fromCodePoint(c.charCodeAt(0) + 127397)).join('');
 }
-
-function removeSeller(name) {
-  sellers = sellers.filter(s => s !== name);
-  allItems = allItems.filter(i => i.seller !== name);
-  saveSellers();
-  renderSellerList();
-  updateSellerFilter();
-  sortAndRender();
-  updateSummary();
+function buildCC() {
+  const list = document.getElementById('cc_list');
+  if (!list) return;
+  list.innerHTML = COUNTRIES.map(([code, kor, eng]) =>
+    `<div class="copt" onclick="pickCC('${code}','${kor}')">
+       ${getFlagEmoji(code)} ${kor}
+       <span class="cc">${code} · ${eng}</span>
+     </div>`
+  ).join('');
 }
-
-function saveSellers() {
-  localStorage.setItem('sb_sellers', JSON.stringify(sellers));
-  document.getElementById('seller_count_label').textContent = sellers.length + '명 등록';
-  document.getElementById('hdr_sellers').textContent = sellers.length;
-}
-
-// ── 셀러 리스트 렌더
-function renderSellerList() {
-  const el = document.getElementById('seller_list');
-  if (!sellers.length) {
-    el.innerHTML = '<div style="text-align:center;padding:20px 0;font-size:12px;color:rgba(255,255,255,.2)">셀러를 추가해주세요</div>';
-    return;
+function toggleDD() {
+  const dd = document.getElementById('cc_dd');
+  dd.classList.toggle('open');
+  if (dd.classList.contains('open')) {
+    document.getElementById('cc_search').value = '';
+    filterCC('');
+    setTimeout(() => document.getElementById('cc_search').focus(), 50);
   }
-  el.innerHTML = sellers.map(s => {
-    const items = allItems.filter(i => i.seller === s);
-    const sold = items.reduce((a,b) => a + (b.soldQuantity||0), 0);
-    return `<div class="seller-item" id="seller_row_${s}">
-      <div class="seller-dot" id="dot_${s}"></div>
-      <div class="seller-name">${s}</div>
-      <div class="seller-count">${items.length ? items.length+'개' : ''} ${sold ? '· '+sold+'sold' : ''}</div>
-      <button class="seller-del" onclick="removeSeller('${s}')">×</button>
-    </div>`;
-  }).join('');
-  document.getElementById('seller_count_label').textContent = sellers.length + '명 등록';
-  document.getElementById('hdr_sellers').textContent = sellers.length;
 }
-
-// ── 스캔
-async function startScan() {
-  if (isScanning) return;
-  if (!sellers.length) { alert('셀러를 먼저 추가해주세요'); return; }
-
-  isScanning = true;
-  allItems = [];
-  const btn = document.getElementById('scan_btn');
-  const btnText = document.getElementById('scan_btn_text');
-  btn.disabled = true;
-  btnText.innerHTML = '<div class="spinner" style="margin-right:6px"></div>스캔 중...';
-
-  const progressWrap = document.getElementById('progress_wrap');
-  const progressFill = document.getElementById('progress_fill');
-  const progressLabel = document.getElementById('progress_label');
-  const progressStatus = document.getElementById('progress_status');
-  progressWrap.style.display = 'block';
-  document.getElementById('empty_state').style.display = 'none';
-
-  const errors = [];
-
-  for (let i = 0; i < sellers.length; i++) {
-    const seller = sellers[i];
-    const pct = Math.round((i / sellers.length) * 100);
-    progressFill.style.width = pct + '%';
-    progressLabel.textContent = `스캔 중... (${i+1}/${sellers.length})`;
-    progressStatus.textContent = `"${seller}" 불러오는 중...`;
-
-    // 로딩 표시
-    const dot = document.getElementById('dot_' + seller);
-    if (dot) { dot.className = 'seller-dot loading'; }
-
-    try {
-      const items = await fetchSellerItems(seller);
-      allItems = [...allItems, ...items];
-
-      if (dot) dot.className = 'seller-dot ok';
-      progressStatus.textContent = `"${seller}" 완료 — ${items.length}개 상품`;
-    } catch(e) {
-      errors.push(`${seller}: ${e.message}`);
-      if (dot) dot.className = 'seller-dot error';
-      progressStatus.textContent = `"${seller}" 오류 — ${e.message}`;
-    }
-
-    renderSellerList();
-    sortAndRender();
-    updateSummary();
-  }
-
-  progressFill.style.width = '100%';
-  progressLabel.textContent = `✅ 스캔 완료! ${allItems.length}개 상품`;
-  progressStatus.textContent = errors.length ? `오류: ${errors.join(', ')}` : '모든 셀러 스캔 완료';
-
-  setTimeout(() => { progressWrap.style.display = 'none'; }, 3000);
-
-  isScanning = false;
-  btn.disabled = false;
-  btnText.textContent = '🔄 다시 스캔';
-}
-
-// eBay API 호출 (최대 200개, 2페이지)
-async function fetchSellerItems(seller) {
-  const items = [];
-
-  // 1페이지 (0~199)
-  const res1 = await fetch(`${API_BASE}?action=seller_items&seller=${encodeURIComponent(seller)}&limit=200&offset=0`);
-  if (!res1.ok) throw new Error(`HTTP ${res1.status}`);
-  const data1 = await res1.json();
-  if (data1.error) throw new Error(data1.error);
-  items.push(...(data1.items || []));
-
-  // 상품이 200개 이상이면 2페이지도
-  if ((data1.total || 0) > 200) {
-    try {
-      const res2 = await fetch(`${API_BASE}?action=seller_items&seller=${encodeURIComponent(seller)}&limit=200&offset=200`);
-      const data2 = await res2.json();
-      items.push(...(data2.items || []));
-    } catch(e) { /* 2페이지 실패는 무시 */ }
-  }
-
-  return items;
-}
-
-// ── 정렬 & 렌더
-function sortAndRender() {
-  const sort = document.getElementById('sort_select').value;
-
-  // 셀러 필터
-  let items = activeSellerFilter === 'all'
-    ? [...allItems]
-    : allItems.filter(i => i.seller === activeSellerFilter);
-
-  // sold 필터
-  if (activeSoldFilter !== 'all') {
-    const min = parseInt(activeSoldFilter);
-    items = items.filter(i => (i.soldQuantity||0) >= min);
-  }
-
-  // 정렬
-  items.sort((a, b) => {
-    switch(sort) {
-      case 'sold_desc':  return (b.soldQuantity||0) - (a.soldQuantity||0);
-      case 'sold_asc':   return (a.soldQuantity||0) - (b.soldQuantity||0);
-      case 'price_desc': return parseFloat(b.price||0) - parseFloat(a.price||0);
-      case 'price_asc':  return parseFloat(a.price||0) - parseFloat(b.price||0);
-      case 'stock_asc': {
-        const sa = a.quantityLeft ?? 9999;
-        const sb = b.quantityLeft ?? 9999;
-        return sa - sb;
-      }
-      case 'title_asc':  return (a.title||'').localeCompare(b.title||'');
-      default: return 0;
-    }
+function filterCC(q) {
+  const qt = q.toLowerCase();
+  document.querySelectorAll('.copt').forEach(el => {
+    const t = el.textContent.toLowerCase();
+    el.style.display = (!qt || t.includes(qt)) ? '' : 'none';
   });
+}
+function pickCC(code, name) {
+  document.getElementById('co').value = code;
+  document.getElementById('sel_txt').textContent =
+    getFlagEmoji(code) + ' ' + name + ' (' + code + ')';
+  document.getElementById('cc_dd').classList.remove('open');
+}
+function clearCC(e) {
+  e.stopPropagation();
+  document.getElementById('co').value = '';
+  document.getElementById('sel_txt').textContent = '국가 선택 (검색 가능)';
+}
+// 외부 클릭 시 드롭다운 닫기
+document.addEventListener('click', (e) => {
+  const wrap = e.target.closest('.search-wrap');
+  if (!wrap) document.getElementById('cc_dd')?.classList.remove('open');
+});
+// ── 국가 검색 기능 끝 ──────────────────────────────
 
-  filteredItems = items;
-  renderItems(items);
-  updateSummary();
+// ══════════════════════════════
+//  Supabase 초기화
+// ══════════════════════════════
+const SUPABASE_URL = 'https://erqhwzsmvhxnexpctcpo.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_fGWhhTFU8iMNpZA77Ql7jA_fEMJUjxX';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const ADMIN_ID = 'burgerwang'; // 관리자 아이디 (변경 가능)
+
+// ── 현재 로그인 세션
+let currentUser = null; // { id, username, status }
+
+// ── SHA-256 해시 (비밀번호)
+async function sha256(str) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
 }
 
-function renderItems(items) {
-  const grid = document.getElementById('item_grid');
-  const emptyState = document.getElementById('empty_state');
-  document.getElementById('items_count_label').textContent = items.length.toLocaleString() + '개 표시';
+// ══════════════════════════════
+//  인증 UI
+// ══════════════════════════════
+function switchAuthTab(t) {
+  document.querySelectorAll('.auth-tab').forEach((e,i)=>e.classList.toggle('on',['login','signup'][i]===t));
+  document.querySelectorAll('.auth-pane').forEach((e,i)=>e.classList.toggle('on',['auth-login','auth-signup'][i]==='auth-'+t));
+}
 
-  if (!items.length) {
-    grid.innerHTML = '';
-    emptyState.style.display = allItems.length ? 'none' : 'flex';
-    if (allItems.length && !items.length) {
-      grid.innerHTML = '<div style="text-align:center;padding:40px;font-size:13px;color:rgba(255,255,255,.3)">필터 조건에 맞는 상품이 없어요</div>';
-    }
-    return;
+function showMsg(id, msg, type) {
+  const el = document.getElementById(id);
+  el.textContent = msg; el.className = 'auth-msg ' + type; el.style.display = 'block';
+}
+
+async function doLogin() {
+  const username = document.getElementById('login_id').value.trim();
+  const pw = document.getElementById('login_pw').value;
+  if (!username || !pw) { showMsg('login_msg','아이디와 비밀번호를 입력해주세요','err'); return; }
+  const btn = document.getElementById('login_btn');
+  btn.disabled = true; btn.textContent = '로그인 중...';
+  try {
+    const hash = await sha256(pw);
+    const { data, error } = await sb.from('profiles').select('*').eq('username', username).eq('password_hash', hash).single();
+    if (error || !data) { showMsg('login_msg','아이디 또는 비밀번호가 틀렸습니다','err'); return; }
+    if (data.status === 'pending') { showMsg('login_msg','⏳ 관리자 승인 대기 중입니다. 승인 후 로그인 가능해요.','warn'); return; }
+    if (data.status === 'rejected') { showMsg('login_msg','❌ 가입이 거절된 계정입니다.','err'); return; }
+    // 로그인 성공
+    currentUser = data;
+    localStorage.setItem('bw_session', JSON.stringify({ id: data.id, username: data.username, status: data.status }));
+    enterApp();
+  } catch(e) {
+    showMsg('login_msg', '오류: ' + e.message, 'err');
+  } finally {
+    btn.disabled = false; btn.textContent = '로그인';
   }
+}
 
-  emptyState.style.display = 'none';
-  grid.innerHTML = items.map(item => {
-    const sold = item.soldQuantity || 0;
-    const price = item.price ? `$${parseFloat(item.price).toFixed(2)}` : '-';
-    const stock = item.quantityLeft;
+async function doSignup() {
+  const username = document.getElementById('signup_id').value.trim();
+  const pw = document.getElementById('signup_pw').value;
+  const pw2 = document.getElementById('signup_pw2').value;
+  if (!username) { showMsg('signup_msg','아이디를 입력해주세요','err'); return; }
+  if (!/^[a-zA-Z0-9_]{4,20}$/.test(username)) { showMsg('signup_msg','아이디는 영문/숫자/언더바 4~20자로 입력해주세요','err'); return; }
+  if (pw.length < 6) { showMsg('signup_msg','비밀번호는 6자 이상이어야 합니다','err'); return; }
+  if (pw !== pw2) { showMsg('signup_msg','비밀번호가 일치하지 않습니다','err'); return; }
+  const btn = document.getElementById('signup_btn');
+  btn.disabled = true; btn.textContent = '처리 중...';
+  try {
+    // 중복 체크
+    const { data: exist } = await sb.from('profiles').select('id').eq('username', username).single();
+    if (exist) { showMsg('signup_msg','이미 사용 중인 아이디입니다','err'); return; }
+    const hash = await sha256(pw);
+    const { error } = await sb.from('profiles').insert({ username, password_hash: hash, status: 'pending' });
+    if (error) throw error;
+    showMsg('signup_msg', '✅ 가입 신청 완료! 관리자 승인 후 로그인 가능합니다.', 'ok');
+    document.getElementById('signup_id').value = '';
+    document.getElementById('signup_pw').value = '';
+    document.getElementById('signup_pw2').value = '';
+  } catch(e) {
+    showMsg('signup_msg', '오류: ' + e.message, 'err');
+  } finally {
+    btn.disabled = false; btn.textContent = '가입 신청';
+  }
+}
 
-    let stockHtml = '';
-    if (stock === null || stock === undefined) {
-      stockHtml = '<span class="stock-badge unknown">-</span>';
-    } else if (stock <= 5) {
-      stockHtml = `<span class="stock-badge low">${stock}개</span>`;
-    } else if (stock <= 20) {
-      stockHtml = `<span class="stock-badge mid">${stock}개</span>`;
-    } else {
-      stockHtml = `<span class="stock-badge high">${stock}개</span>`;
-    }
+function logout() {
+  currentUser = null;
+  localStorage.removeItem('bw_session');
+  items = []; salesLog = [];
+  document.getElementById('auth_wrap').style.display = 'flex';
+  document.getElementById('main_app').style.display = 'none';
+  document.getElementById('admin_wrap').style.display = 'none';
+  document.getElementById('login_id').value = '';
+  document.getElementById('login_pw').value = '';
+  document.getElementById('login_msg').style.display = 'none';
+}
 
-    const imgHtml = item.image
-      ? `<img class="item-img" src="${item.image}" alt="" loading="lazy" onerror="this.style.display='none'">`
-      : `<div class="item-img-placeholder">📦</div>`;
+function enterApp() {
+  document.getElementById('auth_wrap').style.display = 'none';
+  document.getElementById('admin_wrap').style.display = 'none';
+  document.getElementById('main_app').style.display = 'grid';
+  document.getElementById('current_user_label').textContent = '👤 ' + currentUser.username;
+  document.getElementById('admin_btn').style.display = currentUser.username === ADMIN_ID ? 'inline' : 'none';
+  loadFromDB();
+}
 
-    const cat = item.categories ? `<span style="color:rgba(255,255,255,.25)">${item.categories.split('>').pop().trim()}</span>` : '';
+function openApp() {
+  document.getElementById('admin_wrap').style.display = 'none';
+  document.getElementById('main_app').style.display = 'grid';
+}
 
-    return `<div class="item-row">
-      ${imgHtml}
-      <div class="item-title">
-        <div class="item-name" title="${item.title}">${item.title}</div>
-        <div class="item-meta">
-          <span class="item-seller-tag">${item.seller}</span>
-          ${cat}
+// ══════════════════════════════
+//  관리자 패널
+// ══════════════════════════════
+function openAdmin() {
+  if (!currentUser || currentUser.username !== ADMIN_ID) return;
+  document.getElementById('main_app').style.display = 'none';
+  document.getElementById('admin_wrap').style.display = 'block';
+  loadAdminPanel();
+}
+
+async function loadAdminPanel() {
+  const { data } = await sb.from('profiles').select('*').order('created_at', { ascending: true });
+  if (!data) return;
+  _allUsers = data; // 내보내기용 전체 저장
+  updateExportPreview();
+  const pending = data.filter(u => u.status === 'pending');
+  const approved = data.filter(u => u.status === 'approved' && u.username !== ADMIN_ID);
+  const pEl = document.getElementById('pending_list');
+  const aEl = document.getElementById('approved_list');
+  const rEl2 = document.getElementById('rejected_list');
+  if (!pending.length) {
+    pEl.innerHTML = '<div class="empty-admin">대기 중인 가입 신청이 없습니다 🎉</div>';
+  } else {
+    pEl.innerHTML = pending.map(u => `
+      <div class="pending-card">
+        <div><div class="pending-info">👤 ${u.username}</div><div class="pending-date">${new Date(u.created_at).toLocaleString('ko-KR')} 신청</div></div>
+        <div class="pending-btns">
+          <button class="approve-btn" onclick="approveUser('${u.id}','${u.username}')">✅ 승인</button>
+          <button class="reject-btn" onclick="rejectUser('${u.id}','${u.username}')">❌ 거절</button>
         </div>
-      </div>
-      <div>
-        <div class="item-price">${price}</div>
-        <div class="item-price-sub">${item.currency || 'USD'}</div>
-      </div>
-      <div><span class="sold-badge ${sold === 0 ? 'zero' : ''}">${sold > 0 ? sold + ' sold' : '0'}</span></div>
-      <div>${stockHtml}</div>
-      <div style="font-size:11px;color:rgba(255,255,255,.4)">${item.seller}</div>
-      <div><a class="item-link" href="${item.itemUrl}" target="_blank">eBay ↗</a></div>
-    </div>`;
-  }).join('');
+      </div>`).join('');
+  }
+  if (!approved.length) {
+    aEl.innerHTML = '<div class="empty-admin">승인된 계정이 없습니다</div>';
+  } else {
+    aEl.innerHTML = approved.map(u => `
+      <div class="approved-card">
+        <div><div style="font-weight:700">👤 ${u.username}</div><div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:2px">${new Date(u.created_at).toLocaleString('ko-KR')} 가입</div></div>
+        <button class="revoke-btn" onclick="revokeUser('${u.id}','${u.username}')">승인 취소</button>
+      </div>`).join('');
+  }
+  const rejected = data.filter(u => u.status === 'rejected');
+  if (!rejected.length) {
+    rEl2.innerHTML = '<div class="empty-admin">거절된 계정이 없습니다</div>';
+  } else {
+    rEl2.innerHTML = rejected.map(u => `
+      <div class="approved-card" style="background:rgba(229,85,85,.1);border-color:rgba(229,85,85,.2)">
+        <div><div style="font-weight:700;color:#ff9999">👤 ${u.username}</div><div style="font-size:11px;color:rgba(255,255,255,.3);margin-top:2px">${new Date(u.created_at).toLocaleString('ko-KR')} 신청</div></div>
+        <button class="approve-btn" onclick="approveUser('${u.id}','${u.username}')">✅ 재승인</button>
+      </div>`).join('');
+  }
 }
 
-// ── 요약 업데이트
-function updateSummary() {
-  const items = filteredItems.length ? filteredItems : allItems;
-  const totalSold = items.reduce((a,b) => a+(b.soldQuantity||0), 0);
-  const topSold = items.reduce((a,b) => Math.max(a,b.soldQuantity||0), 0);
-  const hasSold = items.filter(i => (i.soldQuantity||0) > 0).length;
-
-  document.getElementById('sum_items').textContent = allItems.length.toLocaleString();
-  document.getElementById('sum_sold').textContent = totalSold.toLocaleString();
-  document.getElementById('sum_top').textContent = topSold > 0 ? topSold + ' sold' : '-';
-  document.getElementById('sum_has_sold').textContent = hasSold > 0 ? hasSold + '개' : '-';
-  document.getElementById('hdr_items').textContent = allItems.length.toLocaleString();
-  document.getElementById('hdr_sold').textContent = totalSold.toLocaleString();
+async function approveUser(id, username) {
+  await sb.from('profiles').update({ status: 'approved' }).eq('id', id);
+  alert(`✅ "${username}" 승인 완료!`);
+  loadAdminPanel();
 }
 
-// ── 셀러 필터
-function updateSellerFilter() {
-  const row = document.getElementById('seller_filter_row');
-  row.innerHTML = `<button class="filter-btn ${activeSellerFilter==='all'?'on':''}" data-seller="all" onclick="setSellerFilter('all',this)">전체</button>` +
-    sellers.map(s => `<button class="filter-btn ${activeSellerFilter===s?'on':''}" data-seller="${s}" onclick="setSellerFilter('${s}',this)">${s}</button>`).join('');
+async function rejectUser(id, username) {
+  if (!confirm(`"${username}" 계정을 거절할까요?`)) return;
+  await sb.from('profiles').update({ status: 'rejected' }).eq('id', id);
+  loadAdminPanel();
 }
 
-function setSellerFilter(val, btn) {
-  activeSellerFilter = val;
-  document.querySelectorAll('[data-seller]').forEach(b => b.classList.remove('on'));
-  btn.classList.add('on');
-  sortAndRender();
+async function revokeUser(id, username) {
+  if (!confirm(`"${username}" 승인을 취소할까요?`)) return;
+  await sb.from('profiles').update({ status: 'pending' }).eq('id', id);
+  loadAdminPanel();
 }
 
-function setSoldFilter(val, btn) {
-  activeSoldFilter = val;
-  document.querySelectorAll('[data-sold]').forEach(b => b.classList.remove('on'));
-  btn.classList.add('on');
-  sortAndRender();
+// ── 계정 내보내기
+let _allUsers = [];
+let _exportFilter = 'all';
+
+function exportUsers() {
+  const panel = document.getElementById('export_panel');
+  panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+  if (panel.style.display === 'block') updateExportPreview();
 }
 
-// ── CSV 내보내기
-function exportCSV() {
-  if (!filteredItems.length && !allItems.length) { alert('데이터가 없어요. 먼저 스캔해주세요'); return; }
-  const items = filteredItems.length ? filteredItems : allItems;
-  const header = '셀러,상품명,가격(USD),판매량(sold),재고,카테고리,상품URL';
-  const rows = items.map(i =>
-    `${i.seller},"${(i.title||'').replace(/"/g,'""')}",${i.price||''},${i.soldQuantity||0},${i.quantityLeft??''},"${i.categories||''}",${i.itemUrl||''}`
-  );
-  const csv = '\uFEFF' + [header, ...rows].join('\n');
+function setExportFilter(f) {
+  _exportFilter = f;
+  ['all','approved','pending','rejected'].forEach(k => {
+    document.getElementById('ef_'+k).classList.toggle('active', k === f);
+  });
+  updateExportPreview();
+}
+
+function updateExportPreview() {
+  const filtered = _exportFilter === 'all' ? _allUsers : _allUsers.filter(u => u.status === _exportFilter);
+  const statusLabel = {all:'전체', approved:'승인됨', pending:'대기중', rejected:'거절됨'};
+  document.getElementById('export_preview').textContent =
+    `${statusLabel[_exportFilter]} 계정 ${filtered.length}개 · 컬럼: 아이디, 상태, 가입일시`;
+}
+
+function doExportCSV() {
+  const filtered = _exportFilter === 'all' ? _allUsers : _allUsers.filter(u => u.status === _exportFilter);
+  if (!filtered.length) { alert('내보낼 계정이 없습니다'); return; }
+
+  const statusKo = { approved: '승인됨', pending: '대기중', rejected: '거절됨' };
+  const header = '아이디,상태,가입일시';
+  const rows = filtered.map(u => {
+    const date = new Date(u.created_at).toLocaleString('ko-KR');
+    return `${u.username},${statusKo[u.status] || u.status},"${date}"`;
+  });
+  const csv = '\uFEFF' + [header, ...rows].join('\n'); // BOM 추가 (엑셀 한글 깨짐 방지)
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   const now = new Date().toISOString().slice(0,10);
-  a.href = url; a.download = `ebay_seller_research_${now}.csv`;
+  a.href = url; a.download = `burgerwang_계정목록_${now}.csv`;
   a.click(); URL.revokeObjectURL(url);
+}
+
+// ══════════════════════════════
+//  DB 저장/로드
+// ══════════════════════════════
+let _saveItemsTimer = null;
+async function saveItemsToDB() {
+  if (!currentUser) return;
+  clearTimeout(_saveItemsTimer);
+  _saveItemsTimer = setTimeout(async () => {
+    // 기존 데이터 전부 지우고 새로 insert
+    await sb.from('items').delete().eq('user_id', currentUser.id);
+    if (items.length) {
+      await sb.from('items').insert(items.map(it => ({ user_id: currentUser.id, data: it })));
+    }
+    // 환율 저장
+    localStorage.setItem('bw_ex_' + currentUser.id, document.getElementById('ex').value);
+  }, 800);
+}
+
+async function saveSalesToDB() {
+  if (!currentUser) return;
+  await sb.from('sales').delete().eq('user_id', currentUser.id);
+  if (salesLog.length) {
+    await sb.from('sales').insert(salesLog.map(s => ({ user_id: currentUser.id, data: s })));
+  }
+}
+
+async function loadFromDB() {
+  if (!currentUser) return;
+  const [itemsRes, salesRes] = await Promise.all([
+    sb.from('items').select('data').eq('user_id', currentUser.id).order('id'),
+    sb.from('sales').select('data').eq('user_id', currentUser.id).order('id')
+  ]);
+  items = (itemsRes.data || []).map(r => r.data);
+  salesLog = (salesRes.data || []).map(r => r.data);
+  // 환율 복원
+  const savedEx = localStorage.getItem('bw_ex_' + currentUser.id);
+  if (savedEx) document.getElementById('ex').value = savedEx;
+  clearUrlRows(); initUrlRows();
+  render();
+  document.getElementById('dash').classList.add('on');
+}
+
+function saveEx() {
+  if (currentUser) localStorage.setItem('bw_ex_' + currentUser.id, document.getElementById('ex').value);
+}
+
+// 자동 로그인 복원
+window.addEventListener('load', () => {
+  buildCC();
+  const sess = localStorage.getItem('bw_session');
+  if (sess) {
+    try {
+      const s = JSON.parse(sess);
+      // DB에서 최신 상태 재확인
+      sb.from('profiles').select('*').eq('id', s.id).single().then(({ data }) => {
+        if (data && data.status === 'approved') {
+          currentUser = data;
+          enterApp();
+        } else {
+          localStorage.removeItem('bw_session');
+        }
+      });
+    } catch(e) { localStorage.removeItem('bw_session'); }
+  }
+  initUrlRows();
+  document.getElementById('sales_date').value = new Date().toISOString().slice(0,10);
+});
+
+// ══════════════════════════════
+//  배송비 데이터 & 계산
+// ══════════════════════════════
+const EU=['BE','CZ','FR','DE','HU','IT','NL','PL','PT','ES','AT','FI','IE','SE','DK','GR','BG','HR','CY','EE','LV','LT','LU','MT','RO','SK','SI'];
+const NM={US:'미국',CA:'캐나다',GB:'영국',AU:'호주',JP:'일본',CN:'중국',HK:'홍콩',TW:'대만',SG:'싱가포르',MY:'말레이시아',TH:'태국',PH:'필리핀',ID:'인도네시아',VN:'베트남',IN:'인도',DE:'독일',FR:'프랑스',IT:'이탈리아',ES:'스페인',NL:'네덜란드',BE:'벨기에',PL:'폴란드',PT:'포르투갈',SE:'스웨덴',DK:'덴마크',AT:'오스트리아',FI:'핀란드',IE:'아일랜드',GR:'그리스',CZ:'체코',HU:'헝가리',RO:'루마니아',BG:'불가리아',SK:'슬로바키아',SI:'슬로베니아',HR:'크로아티아',LT:'리투아니아',LV:'라트비아',EE:'에스토니아',LU:'룩셈부르크',MT:'몰타',CY:'키프로스',NZ:'뉴질랜드',BR:'브라질',RU:'러시아'};
+const STD={"BE":[[0.1,8200],[0.2,9100],[0.3,10200],[0.4,11100],[0.5,12100],[0.6,13600],[0.7,14600],[0.8,15900],[0.9,16800],[1,17800],[1.5,22600],[2,27400],[3,36900],[5,56000],[7,75500],[10,104000]],"CZ":[[0.1,9600],[0.2,10700],[0.5,14000],[1,19500],[2,31600],[3,43200],[5,65200],[10,120300]],"FR":[[0.1,8400],[0.5,12600],[1,18400],[2,29200],[3,40300],[5,61900],[10,114500]],"DE":[[0.1,8000],[0.5,11700],[1,16500],[2,26100],[3,35500],[5,54300],[10,101000]],"HU":[[0.1,7200],[0.5,11600],[1,17200],[2,28500],[3,39900],[5,62500],[10,119100]],"IT":[[0.1,9700],[0.5,14100],[1,19600],[2,31000],[3,44800],[5,67000],[10,122400]],"NL":[[0.1,10500],[0.5,14200],[1,18900],[2,28300],[3,37600],[5,56200],[10,102700]],"PL":[[0.1,8200],[0.5,12500],[1,17800],[2,28500],[3,42200],[5,63600],[10,117000]],"PT":[[0.1,7900],[0.5,12400],[1,17900],[2,29900],[3,41700],[5,65400],[10,124400]],"ES":[[0.1,7300],[0.5,11700],[1,17300],[2,29300],[3,41000],[5,64700],[10,123800]],"AT":[[0.1,11000],[0.5,15300],[1,20800],[2,31700],[3,42600],[5,64300],[10,118800]],"FI":[[0.1,15200],[0.5,20200],[1,26500],[2,40000],[3,52600],[5,77700],[10,140500]],"IE":[[0.1,9800],[0.5,14500],[1,20400],[2,32300],[3,44100],[5,67700],[10,126500]],"SE":[[0.1,10800],[0.5,15500],[1,21400],[2,34000],[3,45900],[5,69600],[10,128900]],"DK":[[0.1,9800],[0.5,14600],[1,19600],[2,29500],[3,39400],[5,59300],[10,109000]],"GR":[[0.1,7000],[0.5,12400],[1,19600],[2,33000],[3,47400],[5,78800],[10,146300]],"BG":[[0.1,8100],[0.5,12300],[1,17600],[2,28200],[3,40300],[5,61300],[10,123100]],"HR":[[0.1,9100],[0.5,12600],[1,17100],[2,26000],[3,35000],[5,52800],[10,97400]],"CY":[[0.1,22300],[0.5,28400],[1,35900],[2,51100],[3,72000],[5,116200],[10,226700]],"EE":[[0.1,21200],[0.5,25700],[1,31200],[2,42300],[3,53300],[5,75400],[10,130700]],"LV":[[0.1,19400],[0.5,24200],[1,30100],[2,42000],[3,53900],[5,77800],[10,137300]],"LT":[[0.1,15400],[0.5,19800],[1,25400],[2,36600],[3,47700],[5,70100],[10,125800]],"LU":[[0.1,17400],[0.5,21100],[1,25800],[2,35300],[3,44700],[5,63500],[10,110500]],"MT":[[0.1,14900],[0.5,21600],[1,30000],[2,46700],[3,63500],[5,97000],[10,180800]],"RO":[[0.1,7400],[0.5,11800],[1,17300],[2,28900],[3,41300],[5,63400],[10,119000]],"SK":[[0.1,8200],[0.5,11800],[1,16200],[2,25200],[3,34100],[5,51900],[10,96600]],"SI":[[0.1,18000],[0.5,22600],[1,28400],[2,40000],[3,51600],[5,74800],[10,132800]],"US":[[0.1,8500],[0.2,10000],[0.3,11700],[0.5,16100],[1,22900],[2,37800],[3,53200],[5,83400],[7,113200],[10,166500],[20,378600],[30,544400]],"GB":[[0.1,5700],[0.5,10600],[1,16700],[2,29000],[3,41200],[5,65600],[10,126700]],"CA":[[0.1,7200],[0.5,12600],[1,18600],[2,32000],[3,43100],[5,66000],[10,122900]],"AU":[[0.2,9700],[0.5,12500],[1,17400],[1.5,22400],[2,27000]]};
+const EMS={"AU":[[0.5,18400],[1,23200],[2,33200],[3,33150],[5,45500],[10,76700],[20,139100],[30,201500]],"BR":[[0.5,20800],[1,24700],[2,32830],[3,40300],[5,56880],[10,109200],[20,213530],[30,317850]],"CA":[[0.5,18850],[1,21450],[2,33200],[3,31850],[5,41930],[10,68580],[20,123500],[30,178100]],"CN":[[0.5,15280],[1,17230],[2,21130],[3,23080],[5,27300],[10,38030],[20,61100],[30,86130]],"FR":[[0.5,16900],[1,19180],[2,26650],[3,30100],[5,36730],[10,63380],[20,120900],[30,178750]],"DE":[[0.5,19830],[1,22750],[2,28280],[3,32830],[5,42250],[10,68580],[20,123500],[30,178100]],"HK":[[0.5,14630],[1,15930],[2,18530],[3,20480],[5,24050],[10,35100],[20,60780],[30,86450]],"ID":[[0.5,12350],[1,13650],[2,16580],[3,19500],[5,24700],[10,38030],[20,73450],[30,108880]],"JP":[[0.5,15280],[1,16580],[2,21450],[3,23730],[5,27950],[10,39000],[20,59480],[30,78980]],"MY":[[0.5,11380],[1,13330],[2,17230],[3,20480],[5,26980],[10,44530],[20,82230],[30,119600]],"NZ":[[0.5,15280],[1,18200],[2,24380],[3,29580],[5,40630],[10,68900],[20,125780],[30,182330]],"PH":[[0.5,12030],[1,13330],[2,16250],[3,18530],[5,23080],[10,35750],[20,63050],[30,90680]],"RU":[[0.5,21130],[1,25030],[2,33150],[3,39330],[5,52330],[10,83530],[20,137480],[30,191430]],"SG":[[0.5,9750],[1,11700],[2,15600],[3,18530],[5,24380],[10,39650],[20,69880],[30,100100]],"ES":[[0.5,19950],[1,22750],[2,29050],[3,32180],[5,43230],[10,72150],[20,129680],[30,186880]],"TW":[[0.5,11380],[1,12350],[2,14630],[3,16580],[5,20150],[10,31850],[20,56550],[30,81250]],"TH":[[0.5,12030],[1,13650],[2,16250],[3,18850],[5,23730],[10,37700],[20,68580],[30,99780]],"GB":[[0.5,21450],[1,24050],[2,28930],[3,33480],[5,42580],[10,68580],[20,123180],[30,177450]],"US":[[0.5,17230],[1,21780],[2,30880],[3,39650],[5,57200],[10,101400],[20,189800],[30,277880]],"VN":[[0.5,11380],[1,12350],[2,14630],[3,16580],[5,20150],[10,31850],[20,56550],[30,81250]]};
+const FDX={"US":[[0.5,28770],[1,34090],[2,45390],[3,50490],[5,69260],[10,136720],[20,227590],[30,321230]],"CA":[[0.5,33150],[1,39170],[2,51620],[3,63360],[5,86070],[10,164050]],"AU":[[0.5,33280],[1,37750],[2,41960],[3,49250],[5,65900],[10,116280]],"JP":[[0.5,30120],[1,32050],[2,35550],[3,37880],[5,46580],[10,72280]],"HK":[[0.5,23500],[1,27020],[2,31210],[3,34860],[5,41880],[10,58270]],"CN":[[0.5,30320],[1,32090],[2,36500],[3,41340],[5,51050],[10,67950]],"TW":[[0.5,26240],[1,27790],[2,31650],[3,35340],[5,42460],[10,63970]],"SG":[[0.5,20470],[1,22270],[2,27590],[3,30850],[5,37100],[10,52650]],"MY":[[0.5,24660],[1,28240],[2,33950],[3,38460],[5,47520],[10,71390]],"TH":[[0.5,24350],[1,27560],[2,31280],[3,35460],[5,43840],[10,74830]],"PH":[[0.5,26360],[1,28910],[2,33750],[3,38230],[5,47250],[10,66980]],"ID":[[0.5,41200],[1,44610],[2,51360],[3,58110],[5,71670],[10,95510]],"VN":[[0.5,23680],[1,25360],[2,28520],[3,32340],[5,40000],[10,64100]],"IN":[[0.5,31200],[1,42160],[2,53210],[3,65280],[5,84610],[10,121620]],"GB":[[0.5,33450],[1,39750],[2,54450],[3,70520],[5,98120],[10,194410]],"DE":[[0.5,33450],[1,39750],[2,54450],[3,70520],[5,98120],[10,194410]],"FR":[[0.5,33450],[1,39750],[2,54450],[3,70520],[5,98120],[10,194410]],"IT":[[0.5,33450],[1,39750],[2,54450],[3,70520],[5,98120],[10,194410]],"ES":[[0.5,33450],[1,39750],[2,54450],[3,70520],[5,98120],[10,194410]],"NL":[[0.5,33450],[1,39750],[2,54450],[3,70520],[5,98120],[10,194410]],"BE":[[0.5,33450],[1,39750],[2,54450],[3,70520],[5,98120],[10,194410]],"AT":[[0.5,57510],[1,69160],[2,92220],[3,114090],[5,162080],[10,318770]],"FI":[[0.5,57510],[1,69160],[2,92220],[3,114090],[5,162080],[10,318770]],"IE":[[0.5,57510],[1,69160],[2,92220],[3,114090],[5,162080],[10,318770]],"SE":[[0.5,57510],[1,69160],[2,92220],[3,114090],[5,162080],[10,318770]],"DK":[[0.5,57510],[1,69160],[2,92220],[3,114090],[5,162080],[10,318770]],"GR":[[0.5,57510],[1,69160],[2,92220],[3,114090],[5,162080],[10,318770]],"CZ":[[0.5,57510],[1,69160],[2,92220],[3,114090],[5,162080],[10,318770]],"HU":[[0.5,57510],[1,69160],[2,92220],[3,114090],[5,162080],[10,318770]],"PL":[[0.5,57510],[1,69160],[2,92220],[3,114090],[5,162080],[10,318770]],"PT":[[0.5,57510],[1,69160],[2,92220],[3,114090],[5,162080],[10,318770]],"BG":[[0.5,57510],[1,69160],[2,92220],[3,114090],[5,162080],[10,318770]],"HR":[[0.5,57510],[1,69160],[2,92220],[3,114090],[5,162080],[10,318770]],"CY":[[0.5,57510],[1,69160],[2,92220],[3,114090],[5,162080],[10,318770]],"EE":[[0.5,57510],[1,69160],[2,92220],[3,114090],[5,162080],[10,318770]],"LV":[[0.5,57510],[1,69160],[2,92220],[3,114090],[5,162080],[10,318770]],"LT":[[0.5,57510],[1,69160],[2,92220],[3,114090],[5,162080],[10,318770]],"LU":[[0.5,57510],[1,69160],[2,92220],[3,114090],[5,162080],[10,318770]],"MT":[[0.5,57510],[1,69160],[2,92220],[3,114090],[5,162080],[10,318770]],"RO":[[0.5,57510],[1,69160],[2,92220],[3,114090],[5,162080],[10,318770]],"SK":[[0.5,57510],[1,69160],[2,92220],[3,114090],[5,162080],[10,318770]],"SI":[[0.5,57510],[1,69160],[2,92220],[3,114090],[5,162080],[10,318770]]};
+
+function lk(t,kg){const s=[...t].sort((a,b)=>a[0]-b[0]);let r=s[0][1];for(let i=0;i<s.length;i++){if(kg>=s[i][0])r=s[i][1];else break;}return r;}
+function fmt(n){return Math.round(n).toLocaleString('ko-KR');}
+
+document.getElementById('co').addEventListener('change',function(){
+  document.getElementById('ddpbox').style.display=this.value==='US'?'block':'none';
+});
+
+function calcShip(){
+  const c=document.getElementById('co').value;
+  const w=parseFloat(document.getElementById('wt').value)||0;
+  const l=parseFloat(document.getElementById('ln').value)||0;
+  const d=parseFloat(document.getElementById('wd').value)||0;
+  const h=parseFloat(document.getElementById('ht').value)||0;
+  const pu=parseFloat(document.getElementById('pu').value)||0;
+  const tr=parseFloat(document.getElementById('tr').value)||15;
+  const ex=parseFloat(document.getElementById('ex_s').value)||1380;
+  if(!c){alert('국가를 선택해주세요');return;}
+  if(!w){alert('무게를 입력해주세요');return;}
+  const isEU=EU.includes(c);
+  const vw=(l&&d&&h)?Math.round(l*d*h/(isEU?5000:6000)*100)/100:null;
+  const cw=vw?Math.max(w,vw):w;
+  const wl=vw?`적용 ${cw.toFixed(2)}kg ${cw===vw?'(부피)':'(실무게)'}`:`적용 ${cw.toFixed(2)}kg`;
+  const ddp=(c==='US'&&pu>0);
+  const tax=ddp?Math.round(pu*ex*(tr/100)):0;
+  const adf=ddp?Math.round(15*ex):0;
+  const nm=NM[c]||c;
+  function card(title,badge,bc,body){return`<div class="sc"><div class="sc-head"><span>${title}</span><span class="bdg ${bc}">${badge}</span></div><div class="sc-body">${body}</div></div>`;}
+  const st=STD[c];let sb2='';
+  if(st){const mx=st[st.length-1][0];
+    if(c==='AU'&&cw>2)sb2='<div class="na-msg">⚠ 호주 최대 2kg 초과</div>';
+    else if(cw>mx)sb2=`<div class="na-msg">⚠ Standard 최대 ${mx}kg 초과</div>`;
+    else{const f=lk(st,cw);const fsc=isEU?Math.round(cw*2000):0;const tot=f+fsc;
+      sb2=`<div class="price-big">${fmt(tot)}<span>원</span></div><div class="wt-tag">${wl}</div>${fsc?`<div class="dl"><span style="color:#bbb">기본운임</span><span>${fmt(f)}원</span></div><div class="dl"><span style="color:#bbb">FSC 2,000원/kg</span><span>+${fmt(fsc)}원</span></div>`:''} ${c==='US'?'<div class="sn">관세 린코스 대납</div>':''}`;}
+  }else sb2='<div class="na-msg">미지원</div>';
+  const et=EMS[c];let eb='';
+  if(et){const mx=et[et.length-1][0];
+    if(cw>mx)eb=`<div class="na-msg">⚠ 최대 ${mx}kg 초과</div>`;
+    else{const f=lk(et,cw);const tot=f+tax;
+      eb=`<div class="price-big">${fmt(tot)}<span>원</span></div><div class="wt-tag">${wl}</div>${ddp?`<div class="dl"><span style="color:#bbb">기본운임</span><span>${fmt(f)}원</span></div><div class="dl"><span style="color:#bbb">관세 DDP</span><span>+${fmt(tax)}원</span></div><div class="tot-line"><span>합계</span><span class="tot-val">${fmt(tot)}원</span></div><div class="en">환율 ${fmt(ex)}원/USD</div>`:''}`;}}
+  else eb='<div class="na-msg">미지원</div>';
+  const ft=FDX[c];let fb='';
+  if(ft){const mx=ft[ft.length-1][0];
+    if(cw>mx)fb=`<div class="na-msg">⚠ 최대 ${mx}kg 초과</div>`;
+    else{const f=lk(ft,cw);const tot=f+tax+adf;
+      fb=`<div class="price-big">${fmt(tot)}<span>원</span></div><div class="wt-tag">${wl}</div>${ddp?`<div class="dl"><span style="color:#bbb">기본운임</span><span>${fmt(f)}원</span></div><div class="dl"><span style="color:#bbb">관세 DDP</span><span>+${fmt(tax)}원</span></div><div class="dl"><span style="color:#bbb">관세대행 $15</span><span>+${fmt(adf)}원</span></div><div class="tot-line"><span>합계</span><span class="tot-val">${fmt(tot)}원</span></div><div class="en">환율 ${fmt(ex)}원/USD</div>`:''}`;}}
+  else fb='<div class="na-msg">미지원</div>';
+  document.getElementById('ship_header').textContent=`${nm}(${c}) · 실무게 ${w}kg${vw?` / 부피무게 ${vw}kg`:''}`;
+  document.getElementById('svc_cards').innerHTML=card('Standard',st?'eGS Standard':'미지원',st?'bs':'bn',sb2)+card('EMS',et?'우체국 EMS':'미지원',et?'be':'bn',eb)+card('FedEx',ft?'eGS Express':'미지원',ft?'bf':'bn',fb);
+  document.getElementById('ship_result').style.display='block';
+}
+
+// ══════════════════════════════
+//  마진 계산기
+// ══════════════════════════════
+let items=[];
+let editingId=null;
+let activeGroup='__all__';
+
+function applyEbayCat(){
+  const sel=document.getElementById('ff_cat');const val=sel.value;
+  const badge=document.getElementById('ff_badge');const ffInput=document.getElementById('ff');
+  if(!val||val==='custom'){ffInput.readOnly=false;badge.style.display='none';if(val==='custom')ffInput.focus();return;}
+  ffInput.value=parseFloat(val);badge.textContent='자동입력';badge.style.display='inline';
+}
+function onFeeManualInput(){document.getElementById('ff_cat').value='custom';document.getElementById('ff_badge').style.display='none';}
+function syncGrpSel(val){const sel=document.getElementById('fg_sel');for(let o of sel.options){if(o.value===val){sel.value=val;return;}}sel.value='';}
+
+function refreshGrpBar(){
+  const grps=[...new Set(items.map(i=>i.group||'').filter(g=>g))].sort();
+  const bar=document.getElementById('gf_bar');if(!bar)return;
+  if(!grps.length){bar.innerHTML='';return;}
+  bar.innerHTML=`<button class="gf-btn ${activeGroup==='__all__'?'active':''}" onclick="setGroup('__all__')">전체 (${items.length})</button>`+
+    grps.map(g=>{const cnt=items.filter(i=>(i.group||'')===g).length;const eg=g.replace(/'/g,"\\'");
+      return`<button class="gf-btn ${activeGroup===g?'active':''}" onclick="setGroup('${eg}')">📁 ${g} (${cnt})</button><button class="gf-btn" style="padding:5px 9px;margin-left:-4px;border-left:none;border-radius:0 20px 20px 0" onclick="openRenameModal('${eg}')" title="그룹명 변경">✏️</button>`;
+    }).join('');
+  const sel=document.getElementById('fg_sel');if(!sel)return;
+  const cur=sel.value;
+  sel.innerHTML='<option value="">기존태그▾</option>'+grps.map(g=>`<option value="${g}">${g}</option>`).join('');
+  if(grps.includes(cur))sel.value=cur;
+}
+function setGroup(g){activeGroup=g;render();}
+
+const URL_MAX=10;
+const urlTypes=['src','ref','sale'];
+function addUrlRow(type,val=''){
+  const list=document.getElementById(type+'_url_list');
+  const cnt=list.querySelectorAll('input').length;if(cnt>=URL_MAX)return;
+  const row=document.createElement('div');row.className='url-row';
+  row.innerHTML=`<input type="text" placeholder="https://..." value="${val.replace(/"/g,'&quot;')}"><button class="url-del-btn" onclick="delUrlRow(this,'${type}')">×</button>`;
+  list.appendChild(row);updateUrlCount(type);row.querySelector('input').focus();
+}
+function delUrlRow(btn,type){btn.parentElement.remove();updateUrlCount(type);}
+function updateUrlCount(type){
+  const list=document.getElementById(type+'_url_list');const cnt=list.querySelectorAll('input').length;
+  document.getElementById(type+'_cnt').textContent=cnt+'/'+URL_MAX;
+  const addBtn=document.getElementById(type+'_add_btn');addBtn.style.opacity=cnt>=URL_MAX?'0.35':'1';addBtn.disabled=cnt>=URL_MAX;
+}
+function getUrlValues(type){return[...document.getElementById(type+'_url_list').querySelectorAll('input')].map(i=>i.value.trim()).filter(v=>v);}
+function setUrlValues(type,vals){const list=document.getElementById(type+'_url_list');list.innerHTML='';(vals||[]).forEach(v=>{if(v)addUrlRow(type,v);});if(!vals||!vals.length)updateUrlCount(type);}
+function clearUrlRows(){urlTypes.forEach(t=>{document.getElementById(t+'_url_list').innerHTML='';updateUrlCount(t);});}
+function initUrlRows(){urlTypes.forEach(t=>{const list=document.getElementById(t+'_url_list');if(!list.querySelectorAll('input').length)addUrlRow(t);});}
+
+let _renameTarget='';
+function openRenameModal(g){_renameTarget=g;const inp=document.getElementById('rename_input');inp.value=g;document.getElementById('rename_modal').style.display='flex';setTimeout(()=>{inp.select();},50);}
+function closeRenameModal(){document.getElementById('rename_modal').style.display='none';_renameTarget='';}
+function confirmRename(){
+  const newName=document.getElementById('rename_input').value.trim();
+  if(!newName){alert('그룹명을 입력해주세요');return;}
+  if(newName===_renameTarget){closeRenameModal();return;}
+  const exists=items.some(i=>(i.group||'')===newName);
+  if(exists&&!confirm(`"${newName}" 그룹이 이미 있어요. 합칠까요?`))return;
+  items=items.map(i=>(i.group||'')===_renameTarget?{...i,group:newName}:i);
+  if(activeGroup===_renameTarget)activeGroup=newName;
+  saveItemsToDB();closeRenameModal();render();
+}
+
+function editItem(id){
+  const it=items.find(i=>i.id===id);if(!it)return;
+  editingId=id;
+  document.getElementById('fn').value=it.name||'';document.getElementById('fp').value=it.price||'';
+  document.getElementById('fs').value=it.ship||'';document.getElementById('fc').value=it.cost||'';
+  document.getElementById('fsk').value=it.shipkrw||'';document.getElementById('ff').value=it.fee||'';
+  document.getElementById('ft').value=it.tax||'';document.getElementById('fh').value=it.hs||'';
+  document.getElementById('fo').value=it.origin||'';
+  setUrlValues('src',it.srcUrls||(it.srcUrl?[it.srcUrl]:[]));
+  setUrlValues('ref',it.refUrls||(it.refUrl?[it.refUrl]:[]));
+  setUrlValues('sale',it.saleUrls||[]);
+  document.getElementById('fg').value=it.group||'';document.getElementById('fg_sel').value='';
+  document.getElementById('ff_cat').value='';document.getElementById('ff_badge').style.display='none';
+  document.getElementById('btn_add').textContent='✔ 수정 저장';document.getElementById('btn_add').style.background='#e8a020';
+  document.getElementById('btn_cancel').style.display='block';
+  switchTab('margin');document.getElementById('fn').scrollIntoView({behavior:'smooth'});document.getElementById('fn').focus();
+}
+function cancelEdit(){
+  editingId=null;
+  ['fn','fp','fs','fc','fsk','ff','ft','fh','fo','fg'].forEach(id=>{document.getElementById(id).value='';});
+  document.getElementById('ff_cat').value='';document.getElementById('ff_badge').style.display='none';document.getElementById('fg_sel').value='';
+  clearUrlRows();initUrlRows();
+  document.getElementById('btn_add').textContent='+ 상품 추가';document.getElementById('btn_add').style.background='';document.getElementById('btn_cancel').style.display='none';
+}
+
+function addItem(){
+  const name=document.getElementById('fn').value.trim();
+  const price=parseFloat(document.getElementById('fp').value)||0;
+  const ship=parseFloat(document.getElementById('fs').value)||0;
+  const cost=parseFloat(document.getElementById('fc').value)||0;
+  const shipkrw=parseFloat(document.getElementById('fsk').value)||0;
+  const fee=parseFloat(document.getElementById('ff').value)||0;
+  const tax=parseFloat(document.getElementById('ft').value)||0;
+  const hs=document.getElementById('fh').value.trim();
+  const origin=document.getElementById('fo').value.trim();
+  const srcUrls=getUrlValues('src');const refUrls=getUrlValues('ref');const saleUrls=getUrlValues('sale');
+  const group=document.getElementById('fg').value.trim();
+  if(!price&&!ship){alert('판매가 또는 고객배송비를 입력해주세요');return;}
+  if(editingId!==null){
+    const idx=items.findIndex(i=>i.id===editingId);
+    if(idx!==-1)items[idx]={...items[idx],name,price,ship,cost,shipkrw,fee,tax,hs,origin,srcUrls,refUrls,saleUrls,group};
+    cancelEdit();
+  }else{
+    items.push({name,price,ship,cost,shipkrw,fee,tax,hs,origin,srcUrls,refUrls,saleUrls,group,id:Date.now()});
+    ['fn','fp','fs','fc','fsk','ff','ft','fh','fo','fg'].forEach(id=>{document.getElementById(id).value='';});
+    document.getElementById('ff_cat').value='';document.getElementById('ff_badge').style.display='none';document.getElementById('fg_sel').value='';
+    clearUrlRows();initUrlRows();
+  }
+  saveItemsToDB();render();
+}
+function clearAll(){if(confirm('모든 상품을 삭제할까요?')){items=[];activeGroup='__all__';saveItemsToDB();render();}}
+function delItem(id){items=items.filter(i=>i.id!==id);saveItemsToDB();render();}
+
+// ══════════════════════════════
+//  판매 실적
+// ══════════════════════════════
+let salesLog=[];
+let salesLogTab='day';
+let salesViewMonth='';
+
+function setLogTab(tab){
+  salesLogTab=tab;
+  document.getElementById('log_tab_day').classList.toggle('log-tab-on',tab==='day');
+  document.getElementById('log_tab_month').classList.toggle('log-tab-on',tab==='month');
+  const monthNav=document.getElementById('log_month_nav');const dateInput=document.getElementById('sales_date');
+  if(tab==='month'){monthNav.style.display='flex';dateInput.style.display='none';if(!salesViewMonth)salesViewMonth=new Date().toISOString().slice(0,7);document.getElementById('log_month_label').textContent=salesViewMonth.slice(0,4)+'년 '+salesViewMonth.slice(5,7)+'월';}
+  else{monthNav.style.display='none';dateInput.style.display='';}
+  renderSalesLog();
+}
+function changeMonth(dir){const[y,m]=salesViewMonth.split('-').map(Number);const d=new Date(y,m-1+dir,1);salesViewMonth=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');document.getElementById('log_month_label').textContent=salesViewMonth.slice(0,4)+'년 '+salesViewMonth.slice(5,7)+'월';renderSalesLog();}
+
+function renderSalesInputTable(){
+  const ex=parseFloat(document.getElementById('ex').value)||1450;
+  const el=document.getElementById('sales_input_tbl');
+  if(!items.length){el.innerHTML='<div class="empty">← 마진 탭에서 상품을 먼저 추가해주세요</div>';return;}
+  const rows=items.map(it=>{
+    const saleKRW=(it.price+it.ship)*ex;const feeKRW=(it.fee&&(it.price+it.ship)>0)?(it.price+it.ship)*ex*(it.fee/100):0;
+    const taxKRW=(it.tax&&it.price>0)?it.price*ex*(it.tax/100):0;const totalCost=it.cost+feeKRW+taxKRW+it.shipkrw;
+    const profit=saleKRW-totalCost;const margin=saleKRW>0?profit/saleKRW*100:0;const vat=Math.round(it.cost*0.097);
+    const pos=profit>=0;const totalQty=salesLog.filter(l=>l.itemId===it.id).reduce((s,l)=>s+l.qty,0);
+    return`<tr><td style="font-weight:700;font-size:13px">${it.name||'(미입력)'}</td><td style="font-size:11px;color:#666">${fmt(saleKRW)}원</td><td class="${pos?'pp':'pn'}" style="font-size:12px">${fmt(profit)}원</td><td><span class="${pos?'mp':'mn'}">${margin.toFixed(1)}%</span></td><td style="color:#3451b2;font-weight:800;font-size:11px">+${fmt(vat)}원</td><td style="color:#2e5f5a;font-weight:800">${totalQty}개</td><td><div style="display:flex;gap:6px;align-items:center"><input type="number" class="sales-qty-input" id="qty_${it.id}" placeholder="0" min="0" step="1" value=""><button class="sales-save-btn" onclick="addSaleEntry(${it.id})">+ 기록</button></div></td></tr>`;
+  }).join('');
+  el.innerHTML=`<table><thead><tr><th style="text-align:left;padding-left:16px;min-width:120px">상품명</th><th>판매가</th><th>단위이익</th><th>마진율</th><th style="color:#93b4ff">부가세(단위)</th><th>누적판매</th><th style="min-width:160px">판매수량 입력</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+function addSaleEntry(itemId){
+  const qtyEl=document.getElementById('qty_'+itemId);const qty=parseInt(qtyEl.value)||0;
+  if(qty<=0){alert('수량을 1개 이상 입력해주세요');return;}
+  const date=(document.getElementById('sales_date').value)||new Date().toISOString().slice(0,10);
+  const ex=parseFloat(document.getElementById('ex').value)||1450;
+  const it=items.find(i=>i.id===itemId);if(!it)return;
+  const saleKRW=(it.price+it.ship)*ex;const feeKRW=(it.fee&&(it.price+it.ship)>0)?(it.price+it.ship)*ex*(it.fee/100):0;
+  const taxKRW=(it.tax&&it.price>0)?it.price*ex*(it.tax/100):0;const totalCost=it.cost+feeKRW+taxKRW+it.shipkrw;
+  const profit=saleKRW-totalCost;const vat=Math.round(it.cost*0.097);
+  salesLog.push({id:Date.now(),date,itemId,itemName:it.name||'(미입력)',qty,salePerUnit:Math.round(saleKRW),profitPerUnit:Math.round(profit),vatPerUnit:vat});
+  saveSalesToDB();qtyEl.value='';renderSalesInputTable();renderSalesStats();renderSalesLog();
+}
+function deleteSaleEntry(logId){salesLog=salesLog.filter(l=>l.id!==logId);saveSalesToDB();renderSalesInputTable();renderSalesStats();renderSalesLog();}
+function clearSalesLog(){if(confirm('판매 기록을 모두 삭제할까요?')){salesLog=[];saveSalesToDB();renderSalesInputTable();renderSalesStats();renderSalesLog();}}
+
+function renderSalesStats(){
+  const totalQty=salesLog.reduce((s,l)=>s+l.qty,0);const totalRevenue=salesLog.reduce((s,l)=>s+l.salePerUnit*l.qty,0);
+  const totalProfit=salesLog.reduce((s,l)=>s+l.profitPerUnit*l.qty,0);const totalVat=salesLog.reduce((s,l)=>s+(l.vatPerUnit||0)*l.qty,0);
+  const margin=totalRevenue>0?totalProfit/totalRevenue*100:0;
+  document.getElementById('ss_qty').textContent=totalQty.toLocaleString();
+  const rEl=document.getElementById('ss_revenue');rEl.textContent=totalRevenue?fmt(totalRevenue)+'원':'-';rEl.className='stat-val '+(totalRevenue>=0?'green':'red');
+  const pEl=document.getElementById('ss_profit');pEl.textContent=totalProfit?fmt(totalProfit)+'원':'-';pEl.className='stat-val '+(totalProfit>=0?'green':'red');
+  const mEl=document.getElementById('ss_margin');mEl.textContent=totalRevenue?margin.toFixed(1)+'%':'-';mEl.className='stat-val '+(margin>=0?'green':'red');
+  document.getElementById('ss_vat').textContent=totalVat?fmt(totalVat)+'원':'-';
+}
+
+function renderSalesLog(){
+  const el=document.getElementById('sales_log_tbl');
+  if(salesLogTab==='day'){
+    const filterDate=document.getElementById('sales_date')&&document.getElementById('sales_date').value;
+    const filtered=filterDate?salesLog.filter(l=>l.date===filterDate):[...salesLog];
+    if(!filtered.length){el.innerHTML='<div class="empty">'+(filterDate?'선택한 날짜에 판매 기록이 없습니다':'아직 판매 기록이 없습니다')+'</div>';return;}
+    filtered.sort((a,b)=>b.id-a.id);
+    const rows=filtered.map(l=>{const pos=l.profitPerUnit>=0;const vat=(l.vatPerUnit||0)*l.qty;
+      return`<tr><td style="color:#888;font-size:11px;white-space:nowrap">${l.date}</td><td style="font-weight:700;font-size:13px">${l.itemName}</td><td style="font-weight:800;color:#2e5f5a">${l.qty}개</td><td style="font-size:11px;color:#666">${fmt(l.salePerUnit*l.qty)}원</td><td class="${pos?'pp':'pn'}">${fmt(l.profitPerUnit*l.qty)}원</td><td style="color:#3451b2;font-weight:700;font-size:11px">+${fmt(vat)}원</td><td><button class="log-del-btn" onclick="deleteSaleEntry(${l.id})">삭제</button></td></tr>`;
+    }).join('');
+    el.innerHTML=`<table><thead><tr><th style="text-align:left;padding-left:16px">날짜</th><th style="text-align:left">상품명</th><th>수량</th><th>매출</th><th>순이익</th><th style="color:#93b4ff">부가세환급</th><th style="width:60px"></th></tr></thead><tbody>${rows}</tbody></table>`;
+  }else{
+    if(!salesViewMonth)salesViewMonth=new Date().toISOString().slice(0,7);
+    const filtered=salesLog.filter(l=>l.date&&l.date.slice(0,7)===salesViewMonth);
+    if(!filtered.length){el.innerHTML=`<div class="empty">${salesViewMonth.slice(0,4)}년 ${salesViewMonth.slice(5,7)}월에 판매 기록이 없습니다</div>`;return;}
+    const summary={};
+    filtered.forEach(l=>{if(!summary[l.itemId])summary[l.itemId]={itemName:l.itemName,qty:0,revenue:0,profit:0,vat:0};summary[l.itemId].qty+=l.qty;summary[l.itemId].revenue+=l.salePerUnit*l.qty;summary[l.itemId].profit+=l.profitPerUnit*l.qty;summary[l.itemId].vat+=(l.vatPerUnit||0)*l.qty;});
+    const summaryRows=Object.values(summary).sort((a,b)=>b.qty-a.qty);
+    const totalQty=summaryRows.reduce((s,r)=>s+r.qty,0);const totalRevenue=summaryRows.reduce((s,r)=>s+r.revenue,0);const totalProfit=summaryRows.reduce((s,r)=>s+r.profit,0);const totalVat=summaryRows.reduce((s,r)=>s+r.vat,0);
+    const rows=summaryRows.map(r=>{const pos=r.profit>=0;const margin=r.revenue>0?r.profit/r.revenue*100:0;
+      return`<tr><td style="font-weight:700;font-size:13px">${r.itemName}</td><td style="font-weight:800;color:#2e5f5a">${r.qty}개</td><td style="font-size:11px;color:#666">${fmt(r.revenue)}원</td><td class="${pos?'pp':'pn'}">${fmt(r.profit)}원</td><td><span class="${pos?'mp':'mn'}">${margin.toFixed(1)}%</span></td><td style="color:#3451b2;font-weight:700;font-size:11px">+${fmt(r.vat)}원</td></tr>`;
+    }).join('');
+    const totalMargin=totalRevenue>0?totalProfit/totalRevenue*100:0;
+    el.innerHTML=`<table><thead><tr><th style="text-align:left;padding-left:16px">상품명</th><th>판매수량</th><th>총 매출</th><th>총 순이익</th><th>마진율</th><th style="color:#93b4ff">부가세환급</th></tr></thead><tbody>${rows}<tr style="background:#f0f7f4;font-weight:900"><td style="font-weight:900;padding-left:16px">📊 ${salesViewMonth.slice(0,4)}년 ${salesViewMonth.slice(5,7)}월 합계</td><td style="color:#2e5f5a;font-weight:900">${totalQty}개</td><td style="color:#222">${fmt(totalRevenue)}원</td><td class="${totalProfit>=0?'pp':'pn'}">${fmt(totalProfit)}원</td><td><span class="${totalProfit>=0?'mp':'mn'}">${totalMargin.toFixed(1)}%</span></td><td style="color:#3451b2;font-weight:900">+${fmt(totalVat)}원</td></tr></tbody></table>`;
+  }
+}
+
+// ── 탭 전환
+function switchTab(t){
+  const tabNames=['ship','margin','sales'];
+  document.querySelectorAll('.tab').forEach((e,i)=>e.classList.toggle('on',tabNames[i]===t));
+  document.querySelectorAll('.pane').forEach((e,i)=>e.classList.toggle('on',['pane-ship','pane-margin','pane-sales'][i]==='pane-'+t));
+  if(t==='ship'){document.getElementById('ship_result').style.display='';document.getElementById('dash').classList.remove('on');document.getElementById('dash-sales').classList.remove('on');}
+  else if(t==='margin'){document.getElementById('ship_result').style.display='none';document.getElementById('dash').classList.add('on');document.getElementById('dash-sales').classList.remove('on');render();}
+  else if(t==='sales'){document.getElementById('ship_result').style.display='none';document.getElementById('dash').classList.remove('on');document.getElementById('dash-sales').classList.add('on');renderSalesInputTable();renderSalesStats();renderSalesLog();if(!document.getElementById('sales_date').value)document.getElementById('sales_date').value=new Date().toISOString().slice(0,10);}
+}
+
+function render(){
+  const ex=parseFloat(document.getElementById('ex').value)||1450;
+  const el=document.getElementById('mtbl');
+  refreshGrpBar();
+  if(!items.length){
+    el.innerHTML='<div class="empty">← 좌측에서 상품을 추가하면 여기에 표시됩니다</div>';
+    ['st_cnt','st_margin','st_profit','st_vat'].forEach(id=>{document.getElementById(id).textContent=id==='st_cnt'?'0':'-';});
+    document.getElementById('foot_note').textContent='';return;
+  }
+  const filtered=activeGroup==='__all__'?items:items.filter(i=>(i.group||'')===activeGroup);
+  let totalProfit=0,totalSale=0,totalVat=0;
+  const calcs=filtered.map(it=>{
+    const saleKRW=(it.price+it.ship)*ex;const feeKRW=(it.fee&&(it.price+it.ship)>0)?(it.price+it.ship)*ex*(it.fee/100):0;
+    const taxKRW=(it.tax&&it.price>0)?it.price*ex*(it.tax/100):0;const totalCost=it.cost+feeKRW+taxKRW+it.shipkrw;
+    const profit=saleKRW-totalCost;const margin=saleKRW>0?profit/saleKRW*100:0;const vat=Math.round(it.cost*0.097);
+    totalProfit+=profit;totalSale+=saleKRW;totalVat+=vat;
+    return{it,saleKRW,feeKRW,taxKRW,profit,margin,vat};
+  });
+  const avgMargin=totalSale>0?totalProfit/totalSale*100:0;
+  document.getElementById('st_cnt').textContent=filtered.length+(activeGroup!=='__all__'?' ['+activeGroup+']':'');
+  const mEl=document.getElementById('st_margin');mEl.textContent=avgMargin.toFixed(1)+'%';mEl.className='stat-val '+(avgMargin>=0?'green':'red');
+  const pEl=document.getElementById('st_profit');pEl.textContent=fmt(totalProfit)+'원';pEl.className='stat-val '+(totalProfit>=0?'green':'red');
+  document.getElementById('st_vat').textContent=fmt(totalVat)+'원';
+  let lastGrp=null;
+  const rows=calcs.map(({it,saleKRW,feeKRW,taxKRW,profit,margin,vat})=>{
+    let gh='';
+    if(activeGroup==='__all__'){const g=it.group||'';if(g!==lastGrp){lastGrp=g;gh=g?`<tr><td colspan="8" class="grp-title">📁 ${g}</td></tr>`:`<tr><td colspan="8" class="grp-title" style="color:#aaa">📁 그룹 없음</td></tr>`;}}
+    const pos=profit>=0;
+    const _su=it.srcUrls||(it.srcUrl?[it.srcUrl]:[]);const _ru=it.refUrls||(it.refUrl?[it.refUrl]:[]);const _lu=it.saleUrls||[];
+    const srcL=_su.length?'<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:2px">'+_su.map((u,i)=>'<a href="'+u+'" target="_blank" style="color:#2e5f5a;font-size:10px;text-decoration:none;background:#e8f5ee;border-radius:8px;padding:1px 6px">📦소싱'+((_su.length>1)?' '+(i+1):'')+'</a>').join('')+'</div>':'';
+    const refL=_ru.length?'<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:2px">'+_ru.map((u,i)=>'<a href="'+u+'" target="_blank" style="color:#555;font-size:10px;text-decoration:none;background:#f0f0f0;border-radius:8px;padding:1px 6px">🔗참고'+((_ru.length>1)?' '+(i+1):'')+'</a>').join('')+'</div>':'';
+    const saleL=_lu.length?'<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:2px">'+_lu.map((u,i)=>'<a href="'+u+'" target="_blank" style="color:#b5621e;font-size:10px;text-decoration:none;background:#fff3e0;border-radius:8px;padding:1px 6px">🛒내판매'+((_lu.length>1)?' '+(i+1):'')+'</a>').join('')+'</div>':'';
+    const hsMark=it.hs?`<div style="font-size:10px;color:#555;margin-top:1px">HS: ${it.hs}${it.origin?' | '+it.origin:''}</div>`:'';
+    const grpTag=it.group?`<span style="font-size:9px;background:#e8f5ee;color:#2d6a4f;border-radius:10px;padding:1px 6px;margin-left:4px">📁${it.group}</span>`:'';
+    return gh+`<tr><td><div style="font-weight:700;font-size:13px">${it.name||'(미입력)'}${grpTag}</div>${hsMark}${(srcL||refL||saleL)?`<div style="margin-top:3px">${srcL}${refL}${saleL}</div>`:''}</td><td style="font-size:12px;white-space:nowrap"><div>$${it.price}+$${it.ship}</div><div style="color:#666;font-size:10px">${fmt(saleKRW)}원</div></td><td style="font-size:11px;white-space:nowrap"><div>${fmt(it.cost)}원</div><div style="color:#666;font-size:10px">배송 ${fmt(it.shipkrw)}원</div></td><td style="font-size:11px;white-space:nowrap"><div>${it.fee||0}%→${fmt(feeKRW)}원</div><div style="color:#666;font-size:10px">광고 ${it.tax||0}%→${fmt(taxKRW)}원</div></td><td class="${pos?'pp':'pn'}" style="white-space:nowrap">${fmt(profit)}원</td><td><span class="${pos?'mp':'mn'}">${margin.toFixed(1)}%</span></td><td style="color:#3451b2;font-weight:700;white-space:nowrap">+${fmt(vat)}원<div style="font-size:10px;color:#888;font-weight:400">원가×9.7%</div></td><td><button class="edit-btn" onclick="editItem(${it.id})">✏️ 수정</button><button class="del-btn" onclick="delItem(${it.id})">삭제</button></td></tr>`;
+  }).join('');
+  el.innerHTML=`<table><thead><tr><th style="min-width:120px">상품명</th><th>판매가</th><th>원가/배송</th><th>수수료/광고</th><th>순이익</th><th>마진율</th><th style="color:#93b4ff">부가세환급</th><th style="width:60px"></th></tr></thead><tbody>${rows}</tbody></table>`;
+  document.getElementById('foot_note').textContent='* 수수료 = (판매가+고객배송비) × 환율 × 수수료%   |   광고 = 판매가 × 환율 × 광고%';
 }
 </script>
 </body>
